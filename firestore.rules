@@ -1,0 +1,155 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Public catalog — read only for customers
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /subcategories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /productVariants/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /banners/{id} {
+      allow read: if resource.data.active == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /homepageSections/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{id} {
+      allow read: if resource.data.status == 'Approved' || isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /blogPosts/{id} {
+      allow read: if resource.data.status == 'Published' || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /coupons/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /storeSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /shippingSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /taxSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /seoSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /adminUsers/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isAdmin();
+    }
+
+    match /customers/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    match /addresses/{addressId} {
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /cart/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /wishlist/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Orders — customers create their own; cannot edit prices/items after create
+    match /orders/{orderId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.status == 'Pending';
+      allow update: if isAdmin()
+        || (isSignedIn()
+          && resource.data.customerId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'timeline', 'cancelledAt'])
+          && request.resource.data.status == 'Cancelled'
+          && resource.data.status in ['Pending', 'Confirmed']);
+      allow delete: if false;
+    }
+
+    match /orderItems/{id} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

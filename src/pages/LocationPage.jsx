@@ -1,0 +1,68 @@
+import { Link, useParams } from 'react-router-dom'
+import { TN_PRIORITY_CITIES } from '../config/store'
+import { catalogCategories } from '../data/catalog'
+import SeoHead from '../components/seo/SeoHead'
+import NotFoundPage from './NotFoundPage'
+
+export default function LocationPage() {
+  const { citySlug } = useParams()
+  const city = TN_PRIORITY_CITIES.find((c) => c.slug === citySlug)
+
+  if (!city) return <NotFoundPage />
+
+  const categories = catalogCategories.filter((c) => !c.parentId).slice(0, 8)
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <SeoHead
+        title={`Pet Supplies Delivery in ${city.name} | Noah's Pets`}
+        description={`Buy dog food, cat products and pet accessories online with delivery in ${city.name}, Tamil Nadu. ${city.highlights}`}
+        keywords={`pet shop ${city.name}, dog food ${city.name}, pet delivery Tamil Nadu`}
+        canonical={`/locations/${city.slug}`}
+      />
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+        {city.region}
+      </p>
+      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+        Pet supplies delivery in {city.name}
+      </h1>
+      <p className="mt-4 text-sm leading-relaxed text-ink-soft sm:text-base">
+        {city.highlights} Noah&apos;s Pets ships packaged pet food, litter, toys
+        and accessories with GST invoices to homes across {city.name} and nearby
+        towns.
+      </p>
+      <p className="mt-4 text-sm leading-relaxed text-ink-soft sm:text-base">
+        Popular orders include adult and puppy dog food, Whiskas and Royal Canin
+        for cats, and everyday grooming essentials. Free shipping applies on
+        eligible cart totals — see checkout for your pin code estimate.
+      </p>
+
+      <h2 className="mt-10 text-xl font-extrabold text-ink">Shop categories</h2>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {categories.map((c) => (
+          <Link
+            key={c.id}
+            to={`/products/${c.slug}`}
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink shadow-card hover:border-brand-200 hover:text-brand-700"
+          >
+            {c.name}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-10 rounded-2xl border border-line bg-surface p-5">
+        <p className="text-sm text-ink-soft">
+          Serving other Tamil Nadu cities too?{' '}
+          <Link to="/contact" className="font-semibold text-brand-600">
+            Contact us
+          </Link>{' '}
+          or browse{' '}
+          <Link to="/shipping" className="font-semibold text-brand-600">
+            shipping info
+          </Link>
+          .
+        </p>
+      </div>
+    </div>
+  )
+}

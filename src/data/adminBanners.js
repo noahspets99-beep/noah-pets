@@ -1,0 +1,58 @@
+export const initialAdminBanners = [
+  {
+    id: 'b1',
+    title: 'Give Your Pet More. Spend Less.',
+    subtitle: 'Up to 30% OFF on selected pet essentials.',
+    image:
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&h=600&fit=crop',
+    ctaLabel: 'Shop Offers',
+    ctaLink: '/#offers',
+    position: 'Homepage Hero',
+    backgroundStyle: 'Sky gradient',
+    status: 'Active',
+    startDate: '2026-08-01',
+    endDate: '2026-08-31',
+  },
+  {
+    id: 'b2',
+    title: 'New Arrivals for Cats',
+    subtitle: 'Fresh food, toys and cozy beds.',
+    image:
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=1200&h=600&fit=crop',
+    ctaLabel: 'Explore Cats',
+    ctaLink: '/#shop-by-pet',
+    position: 'Homepage Mid',
+    backgroundStyle: 'Soft blue',
+    status: 'Active',
+    startDate: '2026-08-05',
+    endDate: '2026-09-05',
+  },
+  {
+    id: 'b3',
+    title: 'Monsoon Grooming Essentials',
+    subtitle: 'Keep coats clean and healthy this season.',
+    image:
+      'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=1200&h=600&fit=crop',
+    ctaLabel: 'Shop Grooming',
+    ctaLink: '/#featured',
+    position: 'Promo Strip',
+    backgroundStyle: 'White card',
+    status: 'Scheduled',
+    startDate: '2026-08-15',
+    endDate: '2026-09-15',
+  },
+  {
+    id: 'b4',
+    title: 'Free Delivery Weekend',
+    subtitle: 'No delivery fee on orders above ₹799.',
+    image:
+      'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1200&h=600&fit=crop',
+    ctaLabel: 'Shop Now',
+    ctaLink: '/#featured',
+    position: 'Homepage Mid',
+    backgroundStyle: 'Accent warm',
+    status: 'Inactive',
+    startDate: '2026-07-01',
+    endDate: '2026-07-07',
+  },
+]

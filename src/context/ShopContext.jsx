@@ -1,0 +1,405 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ShopContext } from './shop-context'
+import { shippingSettings, taxSettings } from '../data/shippingTax'
+import { initialAdminCoupons } from '../data/adminCoupons'
+import { decreaseStockForCartItems } from '../services/inventoryService'
+
+const CART_KEY = 'noah_cart_v1'
+const WISHLIST_KEY = 'noah_wishlist_v1'
+const ORDERS_KEY = 'noah_customer_orders_v1'
+const COUPON_KEY = 'noah_applied_coupon_v1'
+
+function loadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function cartLineKey(item) {
+  return `${item.id}::${item.variantId || 'default'}`
+}
+
+function calcTax(subtotal) {
+  return Math.round((subtotal * (taxSettings.defaultRate || 5)) / 100)
+}
+
+function calcShipping(subtotal) {
+  if (subtotal >= shippingSettings.freeShippingMinOrder) return 0
+  return shippingSettings.standardShippingFee
+}
+
+export function ShopProvider({ children }) {
+  const [cart, setCart] = useState(() => loadJson(CART_KEY, []))
+  const [wishlist, setWishlist] = useState(() => loadJson(WISHLIST_KEY, []))
+  const [orders, setOrders] = useState(() => loadJson(ORDERS_KEY, []))
+  const [appliedCoupon, setAppliedCoupon] = useState(() =>
+    loadJson(COUPON_KEY, null),
+  )
+  const [toast, setToast] = useState(null)
+  const [cartOpen, setCartOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart))
+  }, [cart])
+
+  useEffect(() => {
+    localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist))
+  }, [wishlist])
+
+  useEffect(() => {
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(orders))
+  }, [orders])
+
+  useEffect(() => {
+    if (appliedCoupon) {
+      localStorage.setItem(COUPON_KEY, JSON.stringify(appliedCoupon))
+    } else {
+      localStorage.removeItem(COUPON_KEY)
+    }
+  }, [appliedCoupon])
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type, id: Date.now() })
+  }, [])
+
+  const dismissToast = useCallback(() => setToast(null), [])
+
+  const addToCart = useCallback(
+    (product, options = {}) => {
+      const quantity = options.quantity || 1
+      const variant = options.variant || null
+      const stock = variant?.stock ?? product.stock ?? (product.inStock ? 99 : 0)
+      if (stock < 1 || product.inStock === false) {
+        showToast('This item is out of stock', 'error')
+        return false
+      }
+
+      const line = {
+        id: product.id,
+        variantId: variant?.id || null,
+        variantLabel: variant?.label || product.weight || null,
+        name: product.name,
+        brand: product.brand,
+        slug: product.slug,
+        image: product.image || product.images?.[0],
+        price: variant?.price ?? product.price,
+        originalPrice: variant?.mrp ?? product.originalPrice ?? product.mrp,
+        sku: variant?.sku || product.sku,
+        maxStock: stock,
+        quantity,
+      }
+
+      setCart((prev) => {
+        const key = cartLineKey(line)
+        const existing = prev.find((item) => cartLineKey(item) === key)
+        if (existing) {
+          const nextQty = Math.min(
+            existing.quantity + quantity,
+            existing.maxStock || stock,
+          )
+          return prev.map((item) =>
+            cartLineKey(item) === key ? { ...item, quantity: nextQty } : item,
+          )
+        }
+        return [...prev, line]
+      })
+      showToast(`${product.name} added to cart`)
+      return true
+    },
+    [showToast],
+  )
+
+  const removeFromCart = useCallback((id, variantId = null) => {
+    setCart((prev) =>
+      prev.filter(
+        (item) => !(item.id === id && (item.variantId || null) === variantId),
+      ),
+    )
+  }, [])
+
+  const updateQuantity = useCallback((id, quantity, variantId = null) => {
+    setCart((prev) => {
+      if (quantity < 1) {
+        return prev.filter(
+          (item) =>
+            !(item.id === id && (item.variantId || null) === variantId),
+        )
+      }
+      return prev.map((item) => {
+        if (item.id === id && (item.variantId || null) === variantId) {
+          const max = item.maxStock || 99
+          return { ...item, quantity: Math.min(quantity, max) }
+        }
+        return item
+      })
+    })
+  }, [])
+
+  const clearCart = useCallback(() => {
+    setCart([])
+    setAppliedCoupon(null)
+  }, [])
+
+  const toggleWishlist = useCallback(
+    (product) => {
+      setWishlist((prev) => {
+        const exists = prev.some((item) => item.id === product.id)
+        if (exists) {
+          showToast(`${product.name} removed from wishlist`, 'info')
+          return prev.filter((item) => item.id !== product.id)
+        }
+        showToast(`${product.name} saved to wishlist`)
+        return [
+          ...prev,
+          {
+            id: product.id,
+            name: product.name,
+            brand: product.brand,
+            slug: product.slug,
+            image: product.image || product.images?.[0],
+            price: product.price,
+            originalPrice: product.originalPrice || product.mrp,
+            rating: product.rating,
+            reviews: product.reviews,
+            inStock: product.inStock !== false,
+            discount: product.discount,
+            badge: product.badge,
+            weight: product.weight,
+            age: product.age,
+            flavor: product.flavor,
+            description: product.shortDescription || product.description,
+            petType: product.petType,
+            category: product.category,
+          },
+        ]
+      })
+    },
+    [showToast],
+  )
+
+  const isWishlisted = useCallback(
+    (id) => wishlist.some((item) => item.id === id),
+    [wishlist],
+  )
+
+  const cartCount = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart],
+  )
+
+  const cartSubtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart],
+  )
+
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0
+    const min = Number(appliedCoupon.minOrder || appliedCoupon.minOrderAmount || 0)
+    if (cartSubtotal < min) return 0
+    const type = (appliedCoupon.type || appliedCoupon.discountType || '').toLowerCase()
+    const rawValue = Number(appliedCoupon.value || appliedCoupon.amount || 0)
+    let computed
+    if (type.includes('percent') || type === '%') {
+      computed = Math.round((cartSubtotal * rawValue) / 100)
+      const max = Number(
+        appliedCoupon.maxDiscount || appliedCoupon.maximumDiscount || 0,
+      )
+      if (max > 0) computed = Math.min(computed, max)
+    } else {
+      computed = rawValue
+    }
+    return Math.min(computed, cartSubtotal)
+  }, [appliedCoupon, cartSubtotal])
+
+  const shipping = useMemo(
+    () => calcShipping(Math.max(0, cartSubtotal - couponDiscount)),
+    [cartSubtotal, couponDiscount],
+  )
+
+  const tax = useMemo(
+    () => calcTax(Math.max(0, cartSubtotal - couponDiscount)),
+    [cartSubtotal, couponDiscount],
+  )
+
+  const cartTotal = useMemo(
+    () => Math.max(0, cartSubtotal - couponDiscount + shipping + tax),
+    [cartSubtotal, couponDiscount, shipping, tax],
+  )
+
+  const applyCoupon = useCallback(
+    (code) => {
+      const normalized = String(code || '').trim().toUpperCase()
+      if (!normalized) {
+        showToast('Enter a coupon code', 'error')
+        return false
+      }
+      const found = initialAdminCoupons.find(
+        (c) =>
+          String(c.code).toUpperCase() === normalized &&
+          (c.status === 'Active' || c.active !== false),
+      )
+      if (!found) {
+        showToast('Invalid coupon code', 'error')
+        return false
+      }
+      const min = Number(found.minOrder || found.minOrderAmount || 0)
+      if (cartSubtotal < min) {
+        showToast(`Minimum order ₹${min} required`, 'error')
+        return false
+      }
+      setAppliedCoupon(found)
+      showToast(`Coupon ${found.code} applied`)
+      return true
+    },
+    [cartSubtotal, showToast],
+  )
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCoupon(null)
+    showToast('Coupon removed', 'info')
+  }, [showToast])
+
+  const placeOrder = useCallback(
+    (orderPayload) => {
+      decreaseStockForCartItems(cart)
+      const order = {
+        ...orderPayload,
+        id: `ORD-${Date.now().toString().slice(-6)}`,
+        createdAt: new Date().toISOString(),
+        items: cart.map((item) => ({ ...item })),
+        subtotal: cartSubtotal,
+        discount: couponDiscount,
+        shipping,
+        tax,
+        total: cartTotal,
+        coupon: appliedCoupon?.code || null,
+        status: orderPayload.status || 'Pending',
+        paymentStatus: orderPayload.paymentStatus || 'Pending',
+        timeline:
+          orderPayload.timeline ||
+          [
+            { label: 'Order placed', at: new Date().toISOString(), done: true },
+            {
+              label: 'Payment confirmed',
+              at:
+                orderPayload.paymentStatus === 'Paid'
+                  ? new Date().toISOString()
+                  : null,
+              done: orderPayload.paymentStatus === 'Paid',
+            },
+            { label: 'Order processing', at: null, done: false },
+            { label: 'Shipped', at: null, done: false },
+            { label: 'Out for Delivery', at: null, done: false },
+            { label: 'Delivered', at: null, done: false },
+          ],
+      }
+      setOrders((prev) => [order, ...prev])
+      clearCart()
+      return order
+    },
+    [
+      cart,
+      cartSubtotal,
+      couponDiscount,
+      shipping,
+      tax,
+      cartTotal,
+      appliedCoupon,
+      clearCart,
+    ],
+  )
+
+  const cancelOrder = useCallback(
+    (orderId) => {
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id !== orderId) return o
+          if (!['Pending', 'Confirmed'].includes(o.status)) {
+            showToast('This order can no longer be cancelled', 'error')
+            return o
+          }
+          showToast('Order cancelled')
+          return { ...o, status: 'Cancelled', paymentStatus: o.paymentStatus }
+        }),
+      )
+    },
+    [showToast],
+  )
+
+  const getOrderById = useCallback(
+    (id) => orders.find((o) => o.id === id),
+    [orders],
+  )
+
+  const value = useMemo(
+    () => ({
+      cart,
+      wishlist,
+      orders,
+      toast,
+      cartOpen,
+      searchQuery,
+      mobileSearchOpen,
+      cartCount,
+      cartSubtotal,
+      couponDiscount,
+      shipping,
+      tax,
+      cartTotal,
+      appliedCoupon,
+      wishlistCount: wishlist.length,
+      setCartOpen,
+      setSearchQuery,
+      setMobileSearchOpen,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      toggleWishlist,
+      isWishlisted,
+      applyCoupon,
+      removeCoupon,
+      placeOrder,
+      cancelOrder,
+      getOrderById,
+      showToast,
+      dismissToast,
+    }),
+    [
+      cart,
+      wishlist,
+      orders,
+      toast,
+      cartOpen,
+      searchQuery,
+      mobileSearchOpen,
+      cartCount,
+      cartSubtotal,
+      couponDiscount,
+      shipping,
+      tax,
+      cartTotal,
+      appliedCoupon,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      toggleWishlist,
+      isWishlisted,
+      applyCoupon,
+      removeCoupon,
+      placeOrder,
+      cancelOrder,
+      getOrderById,
+      showToast,
+      dismissToast,
+    ],
+  )
+
+  return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>
+}

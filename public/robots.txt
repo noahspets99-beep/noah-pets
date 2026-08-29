@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Private / transactional areas — do not index
+Disallow: /admin
+Disallow: /admin/
+Disallow: /admin-login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /account
+Disallow: /orders
+Disallow: /wishlist
+
+# Prefer HTTPS canonical host when live
+# Host: https://noahspets.com
+
+Sitemap: https://noahspets.com/sitemap.xml
