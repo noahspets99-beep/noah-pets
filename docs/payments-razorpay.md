@@ -1,5 +1,7 @@
 # API routes for Razorpay — Vercel Serverless (api/ + server/)
 # Production: same-origin https://<vercel-domain>/api/...
+# SPA deep links use vercel.json rewrite → /index.html (excludes /api/*)
+# API: api/[[...path]].js → Express (server/createApp.js)
 # Never expose Razorpay key_secret or Firebase Admin private key to the browser.
 
 ## Local development

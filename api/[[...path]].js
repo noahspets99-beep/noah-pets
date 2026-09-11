@@ -1,6 +1,7 @@
 /**
- * Vercel Serverless entry — all /api/* traffic is rewritten here.
- * Business logic lives in ../server (shared with local payments:dev).
+ * Vercel Serverless catch-all for /api and /api/*
+ * Keeps the full request path so Express routes like /api/health match.
+ * SPA deep links are handled separately via vercel.json → /index.html
  */
 import { createApp } from '../server/createApp.js'
 

@@ -7,27 +7,41 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependencies
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Environment variables
 .env
 .env.*
 !.env.example
 !**/.env.example
-eslint-out.txt
+
+# Firebase / service-account credentials
 serviceAccount*.json
 functions/serviceAccount*.json
 server/serviceAccount*.json
-server/.env
 
-# Editor directories and files
+# Server environment
+server/.env
+functions/.env
+
+# Vercel
+.vercel/
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Misc
+eslint-out.txt
