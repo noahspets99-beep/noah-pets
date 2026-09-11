@@ -1,6 +1,36 @@
 import { ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useCatalog } from '../context/CatalogProvider'
 
+/**
+ * Promo / offers banner — same layout; content prefers active Firebase banners.
+ */
 export default function PromoBanner() {
+  const { banners } = useCatalog()
+  const banner =
+    (banners || []).find((b) => b.active !== false) || null
+
+  const eyebrow = banner?.eyebrow || banner?.badge || 'Limited season offers'
+  const title =
+    banner?.title || banner?.heading || 'Give Your Pet More. Spend Less.'
+  const subtitle =
+    banner?.subtitle ||
+    banner?.description ||
+    'Up to 30% OFF on selected pet essentials — food, toys, beds and grooming must-haves.'
+  const ctaLabel = banner?.ctaLabel || banner?.buttonText || 'Shop Offers'
+  const ctaTo = banner?.link || banner?.ctaLink || '/offers'
+  const image =
+    banner?.image ||
+    banner?.imageUrl ||
+    'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop'
+  const badge = banner?.discountLabel || banner?.offerText || '30% OFF'
+
+  const Cta = ctaTo.startsWith('/') ? Link : 'a'
+  const ctaProps =
+    ctaTo.startsWith('/')
+      ? { to: ctaTo }
+      : { href: ctaTo.startsWith('#') ? ctaTo : '/offers' }
+
   return (
     <section id="offers" className="py-4 sm:py-6">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -21,38 +51,31 @@ export default function PromoBanner() {
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="max-w-xl animate-fade-up">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/80">
-                Limited season offers
+                {eyebrow}
               </p>
               <h2 className="mt-3 text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                Give Your Pet More. Spend Less.
+                {title}
               </h2>
-              <p className="mt-3 text-sm text-white/90 sm:text-base">
-                Up to 30% OFF on selected pet essentials — food, toys, beds and
-                grooming must-haves.
-              </p>
-              <a
-                href="#featured"
+              <p className="mt-3 text-sm text-white/90 sm:text-base">{subtitle}</p>
+              <Cta
+                {...ctaProps}
                 className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50 active:scale-[0.98]"
               >
-                Shop Offers
+                {ctaLabel}
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Cta>
             </div>
 
             <div className="relative mx-auto hidden h-48 w-full max-w-sm sm:block lg:h-56">
               <img
-                src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop"
-                alt="Cat looking curious"
+                src={image}
+                alt=""
+                loading="lazy"
+                decoding="async"
                 className="absolute left-4 top-2 h-36 w-36 rounded-3xl object-cover shadow-lift ring-4 ring-white/30 animate-float sm:h-40 sm:w-40"
               />
-              <img
-                src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=400&fit=crop"
-                alt="Two dogs outdoors"
-                className="absolute bottom-0 right-2 h-32 w-32 rounded-3xl object-cover shadow-lift ring-4 ring-white/30 animate-float sm:h-36 sm:w-36"
-                style={{ animationDelay: '1s' }}
-              />
               <div className="absolute right-10 top-0 rounded-2xl bg-accent px-3 py-2 text-xs font-extrabold text-white shadow-soft">
-                30% OFF
+                {badge}
               </div>
             </div>
           </div>

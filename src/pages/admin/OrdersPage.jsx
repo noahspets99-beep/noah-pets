@@ -24,7 +24,7 @@ const STATUS_TABS = [
 const PAYMENT_FILTERS = ['All', 'Paid', 'Pending', 'Refunded']
 
 export default function OrdersPage() {
-  const { orders } = useAdminStore()
+  const { orders, dataStatus } = useAdminStore()
   const [tab, setTab] = useState('All')
   const [search, setSearch] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('All')
@@ -46,12 +46,17 @@ export default function OrdersPage() {
 
     let list = orders.filter((o) => {
       if (!activeTab.match(o)) return false
-      if (paymentFilter !== 'All' && o.payment !== paymentFilter) return false
+      if (paymentFilter !== 'All') {
+        const pay = o.paymentStatus || o.payment
+        if (pay !== paymentFilter) return false
+      }
       if (!q) return true
+      const name = o.customer?.name || ''
+      const phone = o.customer?.phone || o.customer?.mobile || ''
       return (
-        o.id.toLowerCase().includes(q) ||
-        o.customer.name.toLowerCase().includes(q) ||
-        o.customer.phone.replace(/\s/g, '').includes(q.replace(/\s/g, ''))
+        String(o.id).toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q) ||
+        phone.replace(/\s/g, '').includes(q.replace(/\s/g, ''))
       )
     })
 
@@ -75,8 +80,18 @@ export default function OrdersPage() {
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="Orders"
-        subtitle="Track and manage customer orders."
+        subtitle="Customer orders from Firebase (live)."
       />
+
+      {dataStatus?.error && (
+        <div className="rounded-2xl border border-danger/30 bg-red-50 px-4 py-3 text-sm font-medium text-danger">
+          {dataStatus.error}
+        </div>
+      )}
+
+      {dataStatus?.loading && (
+        <p className="text-sm text-muted">Loading orders from Firebase…</p>
+      )}
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {STATUS_TABS.map(({ key }) => (
@@ -147,8 +162,12 @@ export default function OrdersPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
-          title="No orders found"
-          description="Try adjusting your filters or search query."
+          title="No orders yet"
+          description={
+            dataStatus?.error
+              ? 'Could not load orders from Firebase.'
+              : 'When customers place orders, they will appear here.'
+          }
         />
       ) : (
         <>
@@ -174,11 +193,16 @@ export default function OrdersPage() {
                   >
                     <td className="px-4 py-3 font-semibold text-ink">{o.id}</td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-ink">{o.customer.name}</p>
-                      <p className="text-xs text-muted">{o.customer.phone}</p>
+                      <p className="font-medium text-ink">
+                        {o.customer?.name || 'Customer'}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {o.customer?.phone || '—'}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-muted">
-                      {o.items.reduce((s, i) => s + i.quantity, 0)} items
+                      {(o.items || []).reduce((s, i) => s + (i.quantity || 0), 0)}{' '}
+                      items
                     </td>
                     <td className="px-4 py-3 text-muted">
                       {formatDate(o.createdAt)}
@@ -215,8 +239,12 @@ export default function OrdersPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-ink">{o.id}</p>
-                    <p className="text-sm text-muted">{o.customer.name}</p>
-                    <p className="text-xs text-muted">{o.customer.phone}</p>
+                    <p className="text-sm text-muted">
+                      {o.customer?.name || 'Customer'}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {o.customer?.phone || '—'}
+                    </p>
                   </div>
                   <StatusBadge status={o.status} />
                 </div>

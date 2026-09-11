@@ -9,7 +9,7 @@ import {
   User,
   X,
 } from 'lucide-react'
-import { products, searchProducts } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import MobileMenu from './MobileMenu'
 
@@ -19,7 +19,7 @@ const navLinks = [
   { label: 'Cats', to: '/products/cats' },
   { label: 'Food', to: '/products/dog-food' },
   { label: 'Toys', to: '/products/toys' },
-  { label: 'Offers', to: '/#offers' },
+  { label: 'Offers', to: '/offers' },
   { label: 'Blog', to: '/blog' },
   { label: 'Contact', to: '/contact' },
 ]
@@ -34,6 +34,7 @@ export default function Header() {
     mobileSearchOpen,
     setMobileSearchOpen,
   } = useShop()
+  const { searchProducts } = useCatalog()
   const navigate = useNavigate()
 
   const [scrolled, setScrolled] = useState(false)
@@ -55,16 +56,13 @@ export default function Header() {
     }
   }, [menuOpen, mobileSearchOpen])
 
-  const results = useMemo(
-    () => searchProducts(products, searchQuery).slice(0, 6),
-    [searchQuery],
+  const searchMatches = useMemo(
+    () => searchProducts(searchQuery),
+    [searchQuery, searchProducts],
   )
-
+  const results = useMemo(() => searchMatches.slice(0, 6), [searchMatches])
+  const totalMatches = searchMatches.length
   const showDesktopResults = searchFocused && searchQuery.trim().length > 0
-  const totalMatches = useMemo(
-    () => searchProducts(products, searchQuery).length,
-    [searchQuery],
-  )
 
   const goSearch = (e) => {
     e?.preventDefault?.()

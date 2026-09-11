@@ -265,14 +265,14 @@ export default function SettingsPage() {
 
         <SectionCard
           title="Admin Account"
-          description="Manage admin login credentials."
+          description="Administrator access is controlled by Firebase Authentication."
         >
-          <Field label="Admin Email">
+          <Field label="Authorized admin email">
             <input
               type="email"
               value={form.adminEmail}
-              onChange={(e) => update('adminEmail', e.target.value)}
-              className={`${inputClass} max-w-md`}
+              readOnly
+              className={`${inputClass} max-w-md bg-surface/80 text-muted`}
             />
           </Field>
           <div className="rounded-xl border border-line bg-surface/60 p-4">
@@ -283,8 +283,9 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-semibold text-ink">Password</p>
                 <p className="mt-1 text-sm text-muted">
-                  Authentication settings will be available when Firebase
-                  Authentication is connected.
+                  Sign in and password changes are managed through Firebase
+                  Authentication. Use Forgot password on the admin login page
+                  to reset.
                 </p>
               </div>
             </div>

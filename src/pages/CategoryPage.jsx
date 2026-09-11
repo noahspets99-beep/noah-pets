@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  catalogCategories,
-  catalogBrands,
-  getProductsByCategorySlug,
-  getProductsByPetType,
-  toStorefrontProduct,
-} from '../data/catalog'
+import { catalogBrands } from '../data/catalog'
 import { blogPosts } from '../data/blogPosts'
 import { absoluteUrl } from '../lib/slug'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -29,13 +24,18 @@ const PAGE_SIZE = 12
 
 export default function CategoryPage() {
   const { categorySlug } = useParams()
+  const {
+    categories,
+    getProductsByCategorySlug,
+    getProductsByPetType,
+  } = useCatalog()
   const [brand, setBrand] = useState('All')
   const [sort, setSort] = useState('popular')
   const [page, setPage] = useState(1)
 
   const category = useMemo(
-    () => catalogCategories.find((c) => c.slug === categorySlug),
-    [categorySlug],
+    () => categories.find((c) => c.slug === categorySlug),
+    [categorySlug, categories],
   )
 
   const petType = PET_TYPE_SLUGS[categorySlug]
@@ -49,12 +49,12 @@ export default function CategoryPage() {
           .join(' '))
 
   const rawProducts = useMemo(() => {
-    let list = getProductsByCategorySlug(categorySlug).map(toStorefrontProduct)
+    let list = getProductsByCategorySlug(categorySlug)
     if (!list.length && petType) {
-      list = getProductsByPetType(petType).map(toStorefrontProduct)
+      list = getProductsByPetType(petType)
     }
     return list
-  }, [categorySlug, petType])
+  }, [categorySlug, petType, getProductsByCategorySlug, getProductsByPetType])
 
   const brandsInList = useMemo(() => {
     const set = new Set(rawProducts.map((p) => p.brand).filter(Boolean))
@@ -74,7 +74,7 @@ export default function CategoryPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const relatedCategories = catalogCategories
+  const relatedCategories = categories
     .filter((c) => c.slug !== categorySlug && c.active !== false)
     .slice(0, 6)
 

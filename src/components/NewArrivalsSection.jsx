@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { products } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 export default function NewArrivalsSection() {
+  const { products } = useCatalog()
   const items = products
     .filter((p) => p.newArrival || p.badge === 'New')
     .slice(0, 8)

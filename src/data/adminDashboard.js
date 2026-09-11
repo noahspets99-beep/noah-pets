@@ -1,8 +1,8 @@
 export const initialAdminSettings = {
   storeName: "Noah's Pets",
   logo: '',
-  email: 'hello@noahspets.com',
-  phone: '+91 98765 43210',
+  email: 'noahspets99@gmail.com',
+  phone: '+91 9710101045',
   address: '42 Pet Care Avenue, T. Nagar, Chennai, Tamil Nadu 600017',
   currency: 'INR',
   deliveryFee: 49,
@@ -11,11 +11,11 @@ export const initialAdminSettings = {
   taxPercent: 5,
   instagram: 'https://instagram.com/noahspets',
   facebook: 'https://facebook.com/noahspets',
-  whatsapp: '+91 98765 43210',
+  whatsapp: '+91 9710101455',
   showOutOfStock: true,
   enableReviews: true,
   enableWishlist: true,
-  adminEmail: 'admin@petshop.com',
+  adminEmail: 'noahspets99@gmail.com',
 }
 
 export const initialAdminNotifications = [

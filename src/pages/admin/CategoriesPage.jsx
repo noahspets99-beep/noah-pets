@@ -460,9 +460,14 @@ export default function CategoriesPage() {
         open={formOpen}
         onClose={closeForm}
         title={editingId ? 'Edit Category' : 'Add Category'}
+        description={
+          editingId
+            ? 'Update this category'
+            : 'Create a new category'
+        }
         size="lg"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={closeForm}
@@ -500,7 +505,7 @@ export default function CategoriesPage() {
         title="Delete Category"
         size="sm"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => setDeleteTarget(null)}

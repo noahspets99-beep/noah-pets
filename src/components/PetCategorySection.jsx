@@ -1,8 +1,34 @@
 import { Link } from 'react-router-dom'
 import { petCategories } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import SectionHeader from './SectionHeader'
 
+function toPetTiles(categories) {
+  return (categories || [])
+    .filter((c) => !c.parentId && c.active !== false && c.status !== 'Inactive')
+    .slice(0, 12)
+    .map((c) => ({
+      id: c.slug || c.id,
+      name: c.name,
+      image: c.image || '',
+      emoji: c.emoji || '🐾',
+      description: c.description || 'Shop collection',
+    }))
+}
+
 export default function PetCategorySection() {
+  const { categories, source } = useCatalog()
+  const fromFirebase = toPetTiles(categories)
+  // Prefer Firebase categories when the catalog is live; keep static tiles only offline
+  const tiles =
+    source === 'firestore' && fromFirebase.length > 0
+      ? fromFirebase
+      : source === 'fallback'
+        ? petCategories
+        : fromFirebase.length > 0
+          ? fromFirebase
+          : petCategories
+
   return (
     <section id="shop-by-pet" className="bg-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -13,7 +39,7 @@ export default function PetCategorySection() {
         />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
-          {petCategories.map((cat, index) => (
+          {tiles.map((cat, index) => (
             <Link
               key={cat.id}
               to={`/products/${cat.id}`}
@@ -21,12 +47,18 @@ export default function PetCategorySection() {
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div className="aspect-square overflow-hidden bg-surface">
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                />
+                {cat.image ? (
+                  <img
+                    src={cat.image}
+                    alt={cat.name}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl">
+                    {cat.emoji || '🐾'}
+                  </div>
+                )}
               </div>
               <div className="p-3 sm:p-3.5">
                 <div className="flex items-center gap-1.5">
@@ -39,9 +71,6 @@ export default function PetCategorySection() {
                 </div>
                 <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted sm:text-xs">
                   {cat.description}
-                </p>
-                <p className="mt-2 text-[11px] font-semibold text-brand-600">
-                  {cat.count}+ products
                 </p>
               </div>
             </Link>

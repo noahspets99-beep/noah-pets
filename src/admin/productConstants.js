@@ -1,11 +1,9 @@
 export const PET_TYPES = [
-  'Dog',
-  'Cat',
-  'Bird',
-  'Rabbit',
+  'Dogs',
+  'Cats',
+  'Birds',
   'Fish',
   'Small Pets',
-  'Other',
 ]
 
 export const PRODUCT_STATUSES = ['Active', 'Draft', 'Out of Stock']
@@ -16,7 +14,7 @@ export const EMPTY_PRODUCT = {
   sku: '',
   barcode: '',
   brand: '',
-  petType: 'Dog',
+  petType: 'Dogs',
   category: '',
   subcategory: '',
   description: '',

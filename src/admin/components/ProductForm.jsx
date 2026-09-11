@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
-import { ImagePlus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ImagePlus, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useAdminStore } from '../../context/AdminStore'
+import { slugify } from '../utils'
+import { uploadProductImage } from '../../services/storageUpload'
 import {
   EMPTY_PRODUCT,
   EMPTY_VARIANT,
@@ -10,6 +12,9 @@ import {
 
 const inputClass =
   'w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-100'
+
+const inputErrorClass =
+  'w-full rounded-xl border border-danger/40 bg-red-50 px-4 py-2.5 text-sm outline-none transition focus:border-danger focus:bg-white focus:ring-4 focus:ring-red-100'
 
 const labelClass = 'mb-1.5 block text-sm font-semibold text-ink'
 
@@ -32,7 +37,7 @@ function Section({ title, description, children }) {
   )
 }
 
-function Field({ label, htmlFor, children, className = '' }) {
+function Field({ label, htmlFor, children, className = '', error, hint }) {
   return (
     <div className={className}>
       {label && (
@@ -41,6 +46,8 @@ function Field({ label, htmlFor, children, className = '' }) {
         </label>
       )}
       {children}
+      {hint && !error && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      {error && <p className="mt-1 text-xs font-medium text-danger">{error}</p>}
     </div>
   )
 }
@@ -99,12 +106,22 @@ export default function ProductForm({
   const { categories } = useAdminStore()
   const [form, setForm] = useState(() => buildFormState(initialValues))
   const [submitting, setSubmitting] = useState(false)
-  const [boundKey, setBoundKey] = useState(formKey)
+  const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState('')
+  const [uploadingIndex, setUploadingIndex] = useState(null)
+  const [slugTouched, setSlugTouched] = useState(
+    () => Boolean(initialValues?.slug),
+  )
+  const fileInputRefs = useRef({})
 
-  if (boundKey !== formKey) {
-    setBoundKey(formKey)
+  useEffect(() => {
     setForm(buildFormState(initialValues))
-  }
+    setErrors({})
+    setFormError('')
+    setSlugTouched(Boolean(initialValues?.slug))
+    // Rebind when navigating between create/edit routes (formKey), not on every parent render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey])
 
   const discount = useMemo(
     () => computeDiscount(form.price, form.mrp),
@@ -119,7 +136,30 @@ export default function ProductForm({
     return names.sort()
   }, [categories, form.category])
 
-  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
+  const set = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const setName = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      name: value,
+      slug: slugTouched ? prev.slug : slugify(value),
+    }))
+    setErrors((prev) => {
+      if (!prev.name && !prev.slug) return prev
+      const next = { ...prev }
+      delete next.name
+      if (!slugTouched) delete next.slug
+      return next
+    })
+  }
 
   const updateImage = (index, value) => {
     setForm((prev) => {
@@ -138,6 +178,21 @@ export default function ProductForm({
       const images = prev.images.filter((_, i) => i !== index)
       return { ...prev, images: images.length ? images : [''] }
     })
+  }
+
+  const handleFileUpload = async (index, file) => {
+    if (!file) return
+    setUploadingIndex(index)
+    setFormError('')
+    try {
+      const productId = initialValues?.id || 'new'
+      const url = await uploadProductImage(file, productId)
+      updateImage(index, url)
+    } catch (err) {
+      setFormError(err?.message || 'Image upload failed')
+    } finally {
+      setUploadingIndex(null)
+    }
   }
 
   const updateVariant = (index, key, value) => {
@@ -162,6 +217,25 @@ export default function ProductForm({
     }))
   }
 
+  const validate = (payload) => {
+    const next = {}
+    if (!payload.name?.trim()) next.name = 'Product name is required'
+    if (!payload.sku?.trim()) next.sku = 'SKU is required'
+    if (!payload.slug?.trim()) next.slug = 'URL slug is required'
+    if (!payload.petType) next.petType = 'Select a pet type'
+    if (!payload.category?.trim()) next.category = 'Category is required'
+    if (!(Number(payload.price) > 0)) next.price = 'Enter a valid selling price'
+    if (Number(payload.mrp) > 0 && Number(payload.mrp) < Number(payload.price)) {
+      next.mrp = 'MRP should be greater than or equal to price'
+    }
+    if (Number.isNaN(Number(payload.stock)) || Number(payload.stock) < 0) {
+      next.stock = 'Stock must be 0 or more'
+    }
+    const hasImage = (payload.images || []).some((u) => String(u).trim())
+    if (!hasImage) next.images = 'Add at least one product image'
+    return next
+  }
+
   const buildPayload = (statusOverride) => {
     const images = form.images.map((u) => u.trim()).filter(Boolean)
     const price = Number(form.price) || 0
@@ -184,6 +258,9 @@ export default function ProductForm({
 
     return {
       ...form,
+      name: form.name.trim(),
+      sku: form.sku.trim(),
+      slug: form.slug.trim() || slugify(form.name),
       price,
       mrp,
       stock,
@@ -191,18 +268,29 @@ export default function ProductForm({
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       minOrderQty: Number(form.minOrderQty) || 1,
       discount: computeDiscount(price, mrp),
-      images: images.length ? images : ['https://placehold.co/400x400?text=No+Image'],
+      images: images.length ? images : [],
       status,
-      active: status === 'Active',
+      active: status === 'Active' || status === 'Out of Stock',
       shippingWeight: String(form.shippingWeight || ''),
       variants,
     }
   }
 
   const handleSubmit = async (statusOverride) => {
+    if (submitting || uploadingIndex !== null) return
+    setFormError('')
+    const payload = buildPayload(statusOverride)
+    const nextErrors = validate(payload)
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) {
+      setFormError('Please fix the highlighted fields before saving.')
+      return
+    }
     setSubmitting(true)
     try {
-      await onSubmit(buildPayload(statusOverride))
+      await onSubmit(payload)
+    } catch (err) {
+      setFormError(err?.message || 'Could not save product. Try again.')
     } finally {
       setSubmitting(false)
     }
@@ -214,24 +302,34 @@ export default function ProductForm({
       className="animate-fade-up space-y-6"
     >
       <Section title="Basic Info" description="Name, SKU, and descriptions">
+        {formError && (
+          <div className="rounded-xl border border-danger/30 bg-red-50 px-4 py-3 text-sm font-medium text-danger">
+            {formError}
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Product Name *" htmlFor="pf-name" className="sm:col-span-2">
+          <Field
+            label="Product Name *"
+            htmlFor="pf-name"
+            className="sm:col-span-2"
+            error={errors.name}
+          >
             <input
               id="pf-name"
               required
               value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              className={inputClass}
+              onChange={(e) => setName(e.target.value)}
+              className={errors.name ? inputErrorClass : inputClass}
               placeholder="Premium Adult Dog Food"
             />
           </Field>
-          <Field label="SKU *" htmlFor="pf-sku">
+          <Field label="SKU *" htmlFor="pf-sku" error={errors.sku}>
             <input
               id="pf-sku"
               required
               value={form.sku}
               onChange={(e) => set('sku', e.target.value)}
-              className={inputClass}
+              className={errors.sku ? inputErrorClass : inputClass}
               placeholder="DOG-FOOD-001"
             />
           </Field>
@@ -277,12 +375,12 @@ export default function ProductForm({
 
       <Section title="Classification" description="Pet type and category">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Pet Type *" htmlFor="pf-pet">
+          <Field label="Pet Type *" htmlFor="pf-pet" error={errors.petType}>
             <select
               id="pf-pet"
               value={form.petType}
               onChange={(e) => set('petType', e.target.value)}
-              className={inputClass}
+              className={errors.petType ? inputErrorClass : inputClass}
             >
               {PET_TYPES.map((pt) => (
                 <option key={pt} value={pt}>
@@ -291,13 +389,13 @@ export default function ProductForm({
               ))}
             </select>
           </Field>
-          <Field label="Category *" htmlFor="pf-category">
+          <Field label="Category *" htmlFor="pf-category" error={errors.category}>
             <select
               id="pf-category"
               required
               value={form.category}
               onChange={(e) => set('category', e.target.value)}
-              className={inputClass}
+              className={errors.category ? inputErrorClass : inputClass}
             >
               <option value="">Select category</option>
               {categoryOptions.map((c) => (
@@ -321,7 +419,7 @@ export default function ProductForm({
 
       <Section title="Pricing" description="Price, MRP, tax, and discount">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Selling Price (₹) *" htmlFor="pf-price">
+          <Field label="Selling Price (₹) *" htmlFor="pf-price" error={errors.price}>
             <input
               id="pf-price"
               type="number"
@@ -329,17 +427,17 @@ export default function ProductForm({
               required
               value={form.price}
               onChange={(e) => set('price', e.target.value)}
-              className={inputClass}
+              className={errors.price ? inputErrorClass : inputClass}
             />
           </Field>
-          <Field label="MRP (₹)" htmlFor="pf-mrp">
+          <Field label="MRP (₹)" htmlFor="pf-mrp" error={errors.mrp}>
             <input
               id="pf-mrp"
               type="number"
               min="0"
               value={form.mrp}
               onChange={(e) => set('mrp', e.target.value)}
-              className={inputClass}
+              className={errors.mrp ? inputErrorClass : inputClass}
             />
           </Field>
           <Field label="Discount" htmlFor="pf-discount">
@@ -365,7 +463,7 @@ export default function ProductForm({
 
       <Section title="Inventory" description="Stock levels and thresholds">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Stock Quantity *" htmlFor="pf-stock">
+          <Field label="Stock Quantity *" htmlFor="pf-stock" error={errors.stock}>
             <input
               id="pf-stock"
               type="number"
@@ -373,7 +471,7 @@ export default function ProductForm({
               required
               value={form.stock}
               onChange={(e) => set('stock', e.target.value)}
-              className={inputClass}
+              className={errors.stock ? inputErrorClass : inputClass}
             />
           </Field>
           <Field label="Low Stock Threshold" htmlFor="pf-low">
@@ -389,7 +487,13 @@ export default function ProductForm({
         </div>
       </Section>
 
-      <Section title="Images" description="Product image URLs with preview">
+      <Section
+        title="Images"
+        description="Upload to Firebase Storage or paste a public HTTPS URL"
+      >
+        {errors.images && (
+          <p className="text-xs font-medium text-danger">{errors.images}</p>
+        )}
         <div className="space-y-4">
           {form.images.map((url, index) => (
             <div
@@ -410,13 +514,46 @@ export default function ProductForm({
                   <ImagePlus className="h-5 w-5" />
                 </div>
               )}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 space-y-2">
                 <input
                   value={url}
                   onChange={(e) => updateImage(index, e.target.value)}
                   className={inputClass}
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="https://… (public image URL)"
                 />
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    ref={(el) => {
+                      fileInputRefs.current[index] = el
+                    }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      handleFileUpload(index, file)
+                      e.target.value = ''
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingIndex !== null}
+                    onClick={() => fileInputRefs.current[index]?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-surface disabled:opacity-60"
+                  >
+                    {uploadingIndex === index ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Uploading…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload file
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
               <button
                 type="button"
@@ -434,7 +571,7 @@ export default function ProductForm({
             className="inline-flex items-center gap-2 rounded-xl border border-dashed border-brand-200 bg-brand-50/50 px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
           >
             <ImagePlus className="h-4 w-4" />
-            Add Image URL
+            Add another image
           </button>
         </div>
       </Section>
@@ -617,12 +754,21 @@ export default function ProductForm({
         description="Search and social meta fields for this product"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="URL slug" htmlFor="pf-slug" className="sm:col-span-2">
+          <Field
+            label="URL slug *"
+            htmlFor="pf-slug"
+            className="sm:col-span-2"
+            error={errors.slug}
+            hint="Used in /product/… links. Auto-filled from the product name."
+          >
             <input
               id="pf-slug"
               value={form.slug || ''}
-              onChange={(e) => set('slug', e.target.value)}
-              className={inputClass}
+              onChange={(e) => {
+                setSlugTouched(true)
+                set('slug', e.target.value)
+              }}
+              className={errors.slug ? inputErrorClass : inputClass}
               placeholder="premium-adult-dog-food"
             />
           </Field>
@@ -719,7 +865,7 @@ export default function ProductForm({
             <>
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || uploadingIndex !== null}
                 onClick={() => handleSubmit('Draft')}
                 className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-surface disabled:opacity-60"
               >
@@ -727,7 +873,7 @@ export default function ProductForm({
               </button>
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || uploadingIndex !== null}
                 onClick={() => handleSubmit('Active')}
                 className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:opacity-60"
               >
@@ -737,7 +883,7 @@ export default function ProductForm({
           ) : (
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || uploadingIndex !== null}
               onClick={() => handleSubmit()}
               className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:opacity-60"
             >

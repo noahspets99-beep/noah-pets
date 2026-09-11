@@ -6,10 +6,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    // Noah Pets administrator — Firebase Auth email is source of truth
+    function isAdminByEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'noahspets99@gmail.com';
+    }
+
+    // Optional allowlist docs (legacy / additional admins)
+    function isAdminByDoc() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
         && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active == true;
+    }
+
+    function isAdmin() {
+      return isAdminByEmail() || isAdminByDoc();
     }
 
     function isOwner(userId) {
@@ -59,7 +71,9 @@ service cloud.firestore {
     }
 
     match /coupons/{id} {
-      allow read: if isAdmin();
+      // Customers need Active coupon codes for checkout display/apply.
+      // Discount amounts are still revalidated server-side on order/payment.
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -117,20 +131,31 @@ service cloud.firestore {
       allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    // Orders — customers create their own; cannot edit prices/items after create
+    // Orders — clients may only create Pending drafts / cancel.
+    // Paid status is written only by Admin SDK (Cloud Functions payment verify/webhook).
     match /orders/{orderId} {
       allow read: if isAdmin()
         || (isSignedIn() && resource.data.customerId == request.auth.uid);
-      allow create: if isSignedIn()
-        && request.resource.data.customerId == request.auth.uid
-        && request.resource.data.status == 'Pending';
+      allow create: if isAdmin()
+        || (isSignedIn()
+          && request.resource.data.customerId == request.auth.uid
+          && request.resource.data.status == 'Pending'
+          && request.resource.data.paymentStatus == 'Pending'
+          && !(request.resource.data.keys().hasAny([
+            'razorpayPaymentId',
+            'verifiedAt',
+            'paymentAmountPaise'
+          ])));
       allow update: if isAdmin()
         || (isSignedIn()
           && resource.data.customerId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['status', 'timeline', 'cancelledAt'])
           && request.resource.data.status == 'Cancelled'
-          && resource.data.status in ['Pending', 'Confirmed']);
+          && resource.data.status in ['Pending', 'Confirmed']
+          && request.resource.data.paymentStatus == resource.data.paymentStatus
+          && request.resource.data.customerId == resource.data.customerId
+          && request.resource.data.total == resource.data.total);
       allow delete: if false;
     }
 
@@ -143,9 +168,8 @@ service cloud.firestore {
     match /payments/{id} {
       allow read: if isAdmin()
         || (isSignedIn() && resource.data.customerId == request.auth.uid);
-      allow create: if isSignedIn();
-      allow update: if isAdmin();
-      allow delete: if false;
+      // Writes only via Admin SDK / Cloud Functions (payment verification)
+      allow write: if false;
     }
 
     match /{document=**} {

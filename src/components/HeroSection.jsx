@@ -62,6 +62,8 @@ export default function HeroSection() {
             <img
               src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=900&h=800&fit=crop"
               alt="Happy golden retriever ready for a walk"
+              fetchPriority="high"
+              decoding="async"
               className="h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/25 via-transparent to-transparent" />
@@ -71,6 +73,8 @@ export default function HeroSection() {
             <img
               src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=200&h=200&fit=crop"
               alt=""
+              loading="lazy"
+              decoding="async"
               className="mb-2 h-12 w-12 rounded-xl object-cover"
             />
             <p className="text-xs font-bold text-ink sm:text-sm">
@@ -86,6 +90,8 @@ export default function HeroSection() {
             <img
               src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop"
               alt=""
+              loading="lazy"
+              decoding="async"
               className="mb-2 h-12 w-12 rounded-xl object-cover"
             />
             <p className="text-xs font-bold text-ink sm:text-sm">

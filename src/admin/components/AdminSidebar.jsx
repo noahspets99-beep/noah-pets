@@ -137,9 +137,9 @@ export function AdminSidebar({
 }) {
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logoutAdmin()
-    navigate('/admin-login')
+  const handleLogout = async () => {
+    await logoutAdmin()
+    navigate('/admin-login', { replace: true })
   }
 
   const toggleCollapse = () => {

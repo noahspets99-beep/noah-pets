@@ -11,7 +11,7 @@ const columns = [
       { label: 'Food', to: '/products/dog-food' },
       { label: 'Toys', to: '/products/toys' },
       { label: 'Accessories', to: '/products/accessories' },
-      { label: 'Offers', to: '/#offers' },
+      { label: 'Offers', to: '/offers' },
     ],
   },
   {

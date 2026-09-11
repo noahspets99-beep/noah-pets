@@ -140,9 +140,28 @@ export default function HomepagePage() {
         open={!!editing}
         onClose={() => setEditing(null)}
         title={editing ? `Edit · ${editing.key}` : 'Edit section'}
+        size="lg"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="homepage-section-form"
+              className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600"
+            >
+              Save section
+            </button>
+          </div>
+        }
       >
         {editing && (
-          <form onSubmit={handleSave} className="space-y-4">
+          <form id="homepage-section-form" onSubmit={handleSave} className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-ink">
                 Title
@@ -180,21 +199,6 @@ export default function HomepagePage() {
                 className={`${inputClass} font-mono text-xs`}
                 spellCheck={false}
               />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-surface"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600"
-              >
-                Save section
-              </button>
             </div>
           </form>
         )}

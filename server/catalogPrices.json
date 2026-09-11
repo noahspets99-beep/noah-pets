@@ -1,0 +1,478 @@
+{
+  "p1": {
+    "name": "PawNutrition Premium Adult Dog Food",
+    "price": 2499,
+    "currency": "INR",
+    "variants": {
+      "PN-DOF-ADULT-1kg": {
+        "price": 349,
+        "label": "1kg",
+        "stock": 120
+      },
+      "PN-DOF-ADULT-3kg": {
+        "price": 899,
+        "label": "3kg",
+        "stock": 90
+      },
+      "PN-DOF-ADULT-5kg": {
+        "price": 1399,
+        "label": "5kg",
+        "stock": 70
+      },
+      "PN-DOF-ADULT-10kg": {
+        "price": 2499,
+        "label": "10kg",
+        "stock": 86
+      }
+    }
+  },
+  "p2": {
+    "name": "Pedigree Puppy Chicken & Milk",
+    "price": 1899,
+    "currency": "INR",
+    "variants": {
+      "PED-PUP-CM-1kg": {
+        "price": 299,
+        "label": "1kg",
+        "stock": 100
+      },
+      "PED-PUP-CM-3kg": {
+        "price": 749,
+        "label": "3kg",
+        "stock": 80
+      },
+      "PED-PUP-CM-5kg": {
+        "price": 1199,
+        "label": "5kg",
+        "stock": 55
+      },
+      "PED-PUP-CM-10kg": {
+        "price": 2199,
+        "label": "10kg",
+        "stock": 40
+      }
+    }
+  },
+  "p3": {
+    "name": "BiteBright Dog Dental Chews",
+    "price": 499,
+    "currency": "INR",
+    "variants": {
+      "BB-DENT-250": {
+        "price": 299,
+        "label": "250g",
+        "stock": 80
+      },
+      "BB-DENT-500": {
+        "price": 499,
+        "label": "500g",
+        "stock": 140
+      }
+    }
+  },
+  "p4": {
+    "name": "PlayPaws Interactive Rope Dog Toy",
+    "price": 399,
+    "currency": "INR",
+    "variants": {
+      "PP-ROPE-S": {
+        "price": 299,
+        "label": "Small",
+        "stock": 50
+      },
+      "PP-ROPE-M": {
+        "price": 399,
+        "label": "Medium",
+        "stock": 95
+      },
+      "PP-ROPE-L": {
+        "price": 499,
+        "label": "Large",
+        "stock": 40
+      }
+    }
+  },
+  "p5": {
+    "name": "TrailMate Adjustable Nylon Dog Collar",
+    "price": 349,
+    "currency": "INR",
+    "variants": {
+      "TM-COL-S": {
+        "price": 299,
+        "label": "Small",
+        "stock": 40
+      },
+      "TM-COL-M": {
+        "price": 349,
+        "label": "Medium",
+        "stock": 110
+      },
+      "TM-COL-L": {
+        "price": 399,
+        "label": "Large",
+        "stock": 55
+      }
+    }
+  },
+  "p6": {
+    "name": "TrailMate Reflective Dog Leash",
+    "price": 599,
+    "currency": "INR"
+  },
+  "p7": {
+    "name": "CloudPaws Orthopedic Memory Foam Dog Bed",
+    "price": 3499,
+    "currency": "INR",
+    "variants": {
+      "CP-BED-M": {
+        "price": 2799,
+        "label": "Medium",
+        "stock": 20
+      },
+      "CP-BED-L": {
+        "price": 3499,
+        "label": "Large",
+        "stock": 32
+      },
+      "CP-BED-XL": {
+        "price": 4299,
+        "label": "XL",
+        "stock": 12
+      }
+    }
+  },
+  "p8": {
+    "name": "FurFresh Gentle Dog Shampoo",
+    "price": 449,
+    "currency": "INR"
+  },
+  "p9": {
+    "name": "Royal Canin Indoor Adult Cat Food",
+    "price": 2199,
+    "currency": "INR",
+    "variants": {
+      "RC-CAT-IND-500g": {
+        "price": 649,
+        "label": "500g",
+        "stock": 70
+      },
+      "RC-CAT-IND-1kg": {
+        "price": 1199,
+        "label": "1kg",
+        "stock": 60
+      },
+      "RC-CAT-IND-2kg": {
+        "price": 2199,
+        "label": "2kg",
+        "stock": 54
+      }
+    }
+  },
+  "p10": {
+    "name": "Whiskas Kitten Ocean Fish",
+    "price": 1599,
+    "currency": "INR",
+    "variants": {
+      "WHI-KIT-OF-500g": {
+        "price": 299,
+        "label": "500g",
+        "stock": 90
+      },
+      "WHI-KIT-OF-1kg": {
+        "price": 549,
+        "label": "1kg",
+        "stock": 72
+      },
+      "WHI-KIT-OF-2kg": {
+        "price": 999,
+        "label": "2kg",
+        "stock": 45
+      }
+    }
+  },
+  "p11": {
+    "name": "MeowMunch Crunchy Tuna Cat Treats",
+    "price": 299,
+    "currency": "INR"
+  },
+  "p12": {
+    "name": "ClawCove Cat Scratching Post Tower",
+    "price": 2799,
+    "currency": "INR"
+  },
+  "p13": {
+    "name": "PlayPaws Feather Wand Cat Toy",
+    "price": 249,
+    "currency": "INR"
+  },
+  "p14": {
+    "name": "CleanPaws Clumping Cat Litter 10L",
+    "price": 899,
+    "currency": "INR",
+    "variants": {
+      "CLP-LIT-5": {
+        "price": 499,
+        "label": "5L",
+        "stock": 80
+      },
+      "CLP-LIT-10": {
+        "price": 899,
+        "label": "10L",
+        "stock": 100
+      }
+    }
+  },
+  "p15": {
+    "name": "DineWell Stainless Steel Cat Bowl Set",
+    "price": 599,
+    "currency": "INR"
+  },
+  "p16": {
+    "name": "CloudPaws Plush Cat Cave Bed",
+    "price": 1499,
+    "currency": "INR"
+  },
+  "p17": {
+    "name": "AviaryGold Premium Bird Seed Mix",
+    "price": 449,
+    "currency": "INR",
+    "variants": {
+      "AG-SEED-05": {
+        "price": 199,
+        "label": "500g",
+        "stock": 50
+      },
+      "AG-SEED-15": {
+        "price": 449,
+        "label": "1.5kg",
+        "stock": 70
+      }
+    }
+  },
+  "p18": {
+    "name": "AviaryGold Bird Cage with Perches",
+    "price": 2499,
+    "currency": "INR"
+  },
+  "p19": {
+    "name": "BunnyBite Rabbit Pellets & Hay Mix",
+    "price": 699,
+    "currency": "INR"
+  },
+  "p20": {
+    "name": "TinyTrail Small Pet Exercise Ball",
+    "price": 349,
+    "currency": "INR"
+  },
+  "p21": {
+    "name": "AquaPure Tropical Fish Flakes",
+    "price": 299,
+    "currency": "INR",
+    "variants": {
+      "AP-FLK-100": {
+        "price": 149,
+        "label": "100g",
+        "stock": 60
+      },
+      "AP-FLK-250": {
+        "price": 299,
+        "label": "250g",
+        "stock": 90
+      }
+    }
+  },
+  "p22": {
+    "name": "AquaPure 40L Starter Aquarium Kit",
+    "price": 3999,
+    "currency": "INR"
+  },
+  "p23": {
+    "name": "FurFresh Deshedding Grooming Brush",
+    "price": 699,
+    "currency": "INR"
+  },
+  "p24": {
+    "name": "BiteBright Grain-Free Salmon Dog Treats",
+    "price": 549,
+    "currency": "INR"
+  },
+  "p25": {
+    "name": "Drools Focus Adult Chicken & Egg",
+    "price": 1799,
+    "currency": "INR",
+    "variants": {
+      "DR-FOC-AE-1kg": {
+        "price": 279,
+        "label": "1kg",
+        "stock": 110
+      },
+      "DR-FOC-AE-3kg": {
+        "price": 699,
+        "label": "3kg",
+        "stock": 85
+      },
+      "DR-FOC-AE-5kg": {
+        "price": 1099,
+        "label": "5kg",
+        "stock": 70
+      },
+      "DR-FOC-AE-10kg": {
+        "price": 1799,
+        "label": "10kg",
+        "stock": 95
+      }
+    }
+  },
+  "p26": {
+    "name": "Farmina N&D Prime Chicken & Pomegranate",
+    "price": 4299,
+    "currency": "INR",
+    "variants": {
+      "FAR-ND-CP-1kg": {
+        "price": 999,
+        "label": "1kg",
+        "stock": 40
+      },
+      "FAR-ND-CP-3kg": {
+        "price": 2599,
+        "label": "3kg",
+        "stock": 30
+      },
+      "FAR-ND-CP-5kg": {
+        "price": 4299,
+        "label": "5kg",
+        "stock": 36
+      },
+      "FAR-ND-CP-10kg": {
+        "price": 7899,
+        "label": "10kg",
+        "stock": 18
+      }
+    }
+  },
+  "p27": {
+    "name": "Sheba Chicken Premium Wet Cat Food (Pack of 12)",
+    "price": 699,
+    "currency": "INR",
+    "variants": {
+      "SHE-CHK-500g": {
+        "price": 249,
+        "label": "500g",
+        "stock": 80
+      },
+      "SHE-CHK-1kg": {
+        "price": 449,
+        "label": "1kg",
+        "stock": 70
+      },
+      "SHE-CHK-2kg": {
+        "price": 699,
+        "label": "2kg",
+        "stock": 120
+      }
+    }
+  },
+  "p28": {
+    "name": "WhiskerWell Adult Salmon Cat Food",
+    "price": 1899,
+    "currency": "INR",
+    "variants": {
+      "WW-SAL-AD-500g": {
+        "price": 549,
+        "label": "500g",
+        "stock": 50
+      },
+      "WW-SAL-AD-1kg": {
+        "price": 999,
+        "label": "1kg",
+        "stock": 55
+      },
+      "WW-SAL-AD-2kg": {
+        "price": 1899,
+        "label": "2kg",
+        "stock": 58
+      }
+    }
+  },
+  "p29": {
+    "name": "SnugPaws Soft Fleece Pet Sweater",
+    "price": 799,
+    "currency": "INR",
+    "variants": {
+      "SP-SWEAT-S": {
+        "price": 699,
+        "label": "Small",
+        "stock": 15
+      },
+      "SP-SWEAT-M": {
+        "price": 799,
+        "label": "Medium",
+        "stock": 42
+      },
+      "SP-SWEAT-L": {
+        "price": 899,
+        "label": "Large",
+        "stock": 20
+      }
+    }
+  },
+  "p30": {
+    "name": "TravelPaws Airline-Approved Pet Carrier",
+    "price": 2999,
+    "currency": "INR"
+  },
+  "p31": {
+    "name": "Himalaya Erina-EP Tick & Flea Dog Soap",
+    "price": 199,
+    "currency": "INR"
+  },
+  "p32": {
+    "name": "AviaryGold Cuttlebone & Mineral Block Pack",
+    "price": 199,
+    "currency": "INR"
+  },
+  "p33": {
+    "name": "Royal Canin Medium Adult Dog Food",
+    "price": 3899,
+    "currency": "INR",
+    "variants": {
+      "RC-DOG-MED-1kg": {
+        "price": 549,
+        "label": "1kg",
+        "stock": 45
+      },
+      "RC-DOG-MED-3kg": {
+        "price": 1499,
+        "label": "3kg",
+        "stock": 38
+      },
+      "RC-DOG-MED-5kg": {
+        "price": 2299,
+        "label": "5kg",
+        "stock": 35
+      },
+      "RC-DOG-MED-10kg": {
+        "price": 3899,
+        "label": "10kg",
+        "stock": 40
+      }
+    }
+  },
+  "p34": {
+    "name": "Pedigree Dentastix Daily Oral Care",
+    "price": 449,
+    "currency": "INR",
+    "variants": {
+      "PED-DENT-7": {
+        "price": 149,
+        "label": "7 sticks",
+        "stock": 80
+      },
+      "PED-DENT-28": {
+        "price": 449,
+        "label": "28 sticks",
+        "stock": 150
+      }
+    }
+  }
+}

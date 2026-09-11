@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { products } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
@@ -10,6 +10,7 @@ export default function PetProductsRow({
   slug,
   limit = 8,
 }) {
+  const { products } = useCatalog()
   const items = products.filter((p) => p.petType === petType).slice(0, limit)
 
   if (!items.length) return null

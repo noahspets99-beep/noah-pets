@@ -1,68 +1,123 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
+let scrollLockCount = 0
+let previousBodyOverflow = ''
+
+function lockBodyScroll() {
+  if (typeof document === 'undefined') return
+  if (scrollLockCount === 0) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+  }
+  scrollLockCount += 1
+}
+
+function unlockBodyScroll() {
+  if (typeof document === 'undefined') return
+  scrollLockCount = Math.max(0, scrollLockCount - 1)
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = previousBodyOverflow
+  }
+}
+
+/**
+ * Shared admin dialog: viewport-centered, sticky header/footer, scrollable body.
+ * Portaled to document.body so Admin layout overflow cannot clip it.
+ */
 export default function Modal({
   open,
   onClose,
   title,
+  description,
   children,
   size = 'md',
   footer,
+  closeOnBackdrop = true,
 }) {
+  const titleId = useId()
+  const descriptionId = useId()
+  const panelRef = useRef(null)
+
   useEffect(() => {
     if (!open) return undefined
+    lockBodyScroll()
     const onKey = (e) => {
       if (e.key === 'Escape') onClose?.()
     }
     document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
+    const frame = requestAnimationFrame(() => panelRef.current?.focus())
     return () => {
+      cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      unlockBodyScroll()
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
   const widths = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
+    sm: 'max-w-[min(28rem,100%)]',
+    md: 'max-w-[min(32rem,100%)]',
+    lg: 'max-w-[min(42rem,100%)]',
+    xl: 'max-w-[min(56rem,100%)]',
   }
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] p-4 sm:p-6">
       <button
         type="button"
         className="absolute inset-0 bg-ink/40 backdrop-blur-sm animate-fade-in"
         aria-label="Close dialog"
-        onClick={onClose}
+        onClick={() => {
+          if (closeOnBackdrop) onClose?.()
+        }}
       />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-white shadow-lift animate-fade-up sm:rounded-2xl ${widths[size]}`}
-      >
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-base font-bold text-ink sm:text-lg">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl p-2 text-muted transition hover:bg-surface hover:text-ink"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && (
-          <div className="border-t border-line bg-surface/60 px-5 py-4">
-            {footer}
+      <div className="relative z-10 flex h-full w-full items-center justify-center">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={description ? descriptionId : undefined}
+          tabIndex={-1}
+          className={`flex max-h-full w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-lift animate-fade-up outline-none ${widths[size] || widths.md}`}
+        >
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5 sm:py-4">
+            <div className="min-w-0">
+              <h2
+                id={titleId}
+                className="truncate text-base font-bold text-ink sm:text-lg"
+              >
+                {title}
+              </h2>
+              {description ? (
+                <p id={descriptionId} className="mt-0.5 text-sm text-muted">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-xl p-2 text-muted transition hover:bg-surface hover:text-ink"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+            {children}
           </div>
-        )}
+          {footer ? (
+            <footer className="shrink-0 border-t border-line bg-surface/60 px-4 py-3 sm:px-5 sm:py-4">
+              {footer}
+            </footer>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

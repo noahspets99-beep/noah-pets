@@ -2,9 +2,19 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/b/{bucket}/o {
-    function isAdmin() {
+    function isAdminByEmail() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'noahspets99@gmail.com';
+    }
+
+    function isAdminByDoc() {
       return request.auth != null
         && firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid)).data.active == true;
+    }
+
+    function isAdmin() {
+      return isAdminByEmail() || isAdminByDoc();
     }
 
     match /products/{allPaths=**} {

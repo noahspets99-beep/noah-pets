@@ -18,12 +18,16 @@ export default function CustomersPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return customers
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')),
-    )
+    return customers.filter((c) => {
+      const name = String(c.name || '').toLowerCase()
+      const email = String(c.email || '').toLowerCase()
+      const phone = String(c.phone || '').replace(/\s/g, '')
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q.replace(/\s/g, ''))
+      )
+    })
   }, [customers, search])
 
   const { items, totalPages } = paginate(filtered, page, 8)
@@ -31,7 +35,12 @@ export default function CustomersPage() {
   const customerOrders = useMemo(() => {
     if (!selected) return []
     return orders
-      .filter((o) => o.customer.id === selected.id)
+      .filter(
+        (o) =>
+          o.customer?.id === selected.id ||
+          o.customerId === selected.id ||
+          o.customer?.email?.toLowerCase() === selected.email?.toLowerCase(),
+      )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5)
   }, [orders, selected])
@@ -62,8 +71,12 @@ export default function CustomersPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No customers found"
-          description="Try a different search term."
+          title="No customers yet"
+          description={
+            search.trim()
+              ? 'Try a different search term.'
+              : 'Customers appear from Firebase or from placed orders.'
+          }
         />
       ) : (
         <>
@@ -175,6 +188,17 @@ export default function CustomersPage() {
         onClose={() => setSelected(null)}
         title={selected?.name ?? 'Customer'}
         size="lg"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="rounded-xl border border-line px-4 py-2 text-sm font-semibold"
+            >
+              Close
+            </button>
+          </div>
+        }
       >
         {selected && (
           <div className="space-y-6">

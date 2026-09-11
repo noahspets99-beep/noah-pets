@@ -1,8 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import {
-  getSidebarCollapsed,
-  isAdminLoggedIn,
-} from '../../services/adminAuth'
+import { getSidebarCollapsed } from '../../services/adminAuth'
+import { useAuth } from '../../context/useAuth'
 import AdminSidebar from './AdminSidebar'
 import AdminToastStack from './AdminToastStack'
 import AdminTopbar from './AdminTopbar'
@@ -16,10 +14,17 @@ const titles = {
   '/admin/categories': 'Categories',
   '/admin/orders': 'Orders',
   '/admin/customers': 'Customers',
+  '/admin/inventory': 'Inventory',
   '/admin/reviews': 'Reviews',
   '/admin/coupons': 'Coupons',
+  '/admin/offers': 'Offers',
   '/admin/banners': 'Banners',
+  '/admin/payments': 'Payments',
+  '/admin/blog': 'Blog',
   '/admin/settings': 'Settings',
+  '/admin/seo': 'SEO',
+  '/admin/shipping': 'Shipping',
+  '/admin/homepage': 'Homepage',
 }
 
 function resolveTitle(pathname) {
@@ -31,13 +36,34 @@ function resolveTitle(pathname) {
   return 'Admin'
 }
 
+function AuthGateScreen({ message }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface">
+      <div className="flex flex-col items-center gap-3 px-4 text-center">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-brand-200 border-t-brand-500" />
+        <p className="text-sm font-medium text-muted">{message}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminLayout() {
   const location = useLocation()
+  const { authReady, isAuthenticated, isAdmin } = useAuth()
   const [collapsed, setCollapsed] = useState(getSidebarCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  if (!isAdminLoggedIn()) {
+  // Wait for Firebase auth before rendering admin UI (avoids flash of content)
+  if (!authReady) {
+    return <AuthGateScreen message="Verifying admin access…" />
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/admin-login" replace state={{ from: location }} />
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />
   }
 
   return (

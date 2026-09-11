@@ -1,21 +1,36 @@
 import { Link } from 'react-router-dom'
 import { Package } from 'lucide-react'
 import { formatPrice } from '../data/products'
+import { useAuth } from '../context/useAuth'
 import { useShop } from '../context/useShop'
 import SeoHead from '../components/seo/SeoHead'
 
 export default function OrdersPage() {
   const { orders } = useShop()
+  const { user, isAuthenticated } = useAuth()
+
+  const visibleOrders = isAuthenticated
+    ? orders.filter(
+        (o) =>
+          o.customerId === user?.uid ||
+          o.customer?.email?.toLowerCase() === user?.email?.toLowerCase() ||
+          o.shippingAddress?.email?.toLowerCase() === user?.email?.toLowerCase() ||
+          // Guest orders placed before sign-in still live in this browser
+          !o.customerId,
+      )
+    : orders
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead title="My Orders" noindex canonical="/orders" />
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">My Orders</h1>
       <p className="mt-2 text-sm text-muted">
-        Track status for orders placed on this device (demo local storage).
+        {isAuthenticated
+          ? 'Orders linked to your account on this device.'
+          : 'Orders placed on this device. Sign in from Account to keep them with your profile.'}
       </p>
 
-      {orders.length === 0 ? (
+      {visibleOrders.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-line bg-surface px-6 py-16 text-center">
           <Package className="mx-auto h-10 w-10 text-brand-500" />
           <p className="mt-4 font-semibold text-ink">No orders yet</p>
@@ -28,7 +43,7 @@ export default function OrdersPage() {
         </div>
       ) : (
         <ul className="mt-8 space-y-4">
-          {orders.map((order) => (
+          {visibleOrders.map((order) => (
             <li
               key={order.id}
               className="rounded-2xl border border-line bg-white p-5 shadow-card"

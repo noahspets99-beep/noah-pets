@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { foodTabs, products } from '../data/products'
+import { foodTabs } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 export default function FoodSection() {
+  const { products } = useCatalog()
   const [tab, setTab] = useState('Dog Food')
 
   const foodProducts = useMemo(() => {
@@ -11,7 +13,7 @@ export default function FoodSection() {
       if (tab === 'Treats') return p.category === 'Treats'
       return p.subcategory === tab
     })
-  }, [tab])
+  }, [tab, products])
 
   return (
     <section id="food" className="bg-white py-12 sm:py-16">

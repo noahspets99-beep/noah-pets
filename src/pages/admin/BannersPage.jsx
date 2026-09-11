@@ -188,7 +188,7 @@ export default function BannersPage() {
         title={editing ? 'Edit Banner' : 'Create Banner'}
         size="lg"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => {
@@ -356,7 +356,7 @@ export default function BannersPage() {
         onClose={() => setDeleteTarget(null)}
         title="Delete banner?"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => setDeleteTarget(null)}

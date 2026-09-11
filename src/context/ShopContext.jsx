@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
 import { shippingSettings, taxSettings } from '../data/shippingTax'
-import { initialAdminCoupons } from '../data/adminCoupons'
 import { decreaseStockForCartItems } from '../services/inventoryService'
+import { useCatalog } from './CatalogProvider'
+import { useAuth } from './useAuth'
+import {
+  listCollection,
+  fsQuery,
+  isFirebaseConfigured,
+  patchDocument,
+} from '../services/firestore/repository'
 
 const CART_KEY = 'noah_cart_v1'
 const WISHLIST_KEY = 'noah_wishlist_v1'
@@ -32,6 +39,8 @@ function calcShipping(subtotal) {
 }
 
 export function ShopProvider({ children }) {
+  const { coupons: liveCoupons } = useCatalog()
+  const { user, isAuthenticated } = useAuth()
   const [cart, setCart] = useState(() => loadJson(CART_KEY, []))
   const [wishlist, setWishlist] = useState(() => loadJson(WISHLIST_KEY, []))
   const [orders, setOrders] = useState(() => loadJson(ORDERS_KEY, []))
@@ -62,6 +71,45 @@ export function ShopProvider({ children }) {
       localStorage.removeItem(COUPON_KEY)
     }
   }, [appliedCoupon])
+
+  // Merge authenticated customer's Firestore orders (status updates from admin)
+  useEffect(() => {
+    let cancelled = false
+    async function syncOrders() {
+      if (!isAuthenticated || !user?.uid || !isFirebaseConfigured) return
+      try {
+        const res = await listCollection('orders', [
+          fsQuery.where('customerId', '==', user.uid),
+        ])
+        if (cancelled || res.mode !== 'firestore' || !Array.isArray(res.data)) return
+        const remote = res.data.sort(
+          (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+        )
+        setOrders((local) => {
+          const byId = new Map()
+          for (const o of local) byId.set(o.id, o)
+          for (const o of remote) {
+            const prev = byId.get(o.id)
+            byId.set(o.id, prev ? { ...prev, ...o } : o)
+          }
+          return [...byId.values()].sort(
+            (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+          )
+        })
+      } catch (err) {
+        console.warn('Order sync skipped', err?.message || err)
+      }
+    }
+    syncOrders()
+    const onFocus = () => syncOrders()
+    window.addEventListener('focus', onFocus)
+    const interval = setInterval(syncOrders, 60_000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      clearInterval(interval)
+    }
+  }, [isAuthenticated, user?.uid])
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type, id: Date.now() })
@@ -187,6 +235,22 @@ export function ShopProvider({ children }) {
     [wishlist],
   )
 
+  /** Total qty for a product across default (no-variant) lines — used by product cards. */
+  const getCartQuantity = useCallback(
+    (productId, variantId = null) => {
+      return cart.reduce((sum, item) => {
+        if (item.id !== productId) return sum
+        if (variantId != null) {
+          return item.variantId === variantId ? sum + item.quantity : sum
+        }
+        // Product cards add without a variant — sum matching default lines, or all lines for that product
+        if (item.variantId == null) return sum + item.quantity
+        return sum + item.quantity
+      }, 0)
+    },
+    [cart],
+  )
+
   const cartCount = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart],
@@ -238,10 +302,11 @@ export function ShopProvider({ children }) {
         showToast('Enter a coupon code', 'error')
         return false
       }
-      const found = initialAdminCoupons.find(
+      const found = liveCoupons.find(
         (c) =>
           String(c.code).toUpperCase() === normalized &&
-          (c.status === 'Active' || c.active !== false),
+          (c.status === 'Active' || c.active !== false) &&
+          c.status !== 'Expired',
       )
       if (!found) {
         showToast('Invalid coupon code', 'error')
@@ -256,7 +321,7 @@ export function ShopProvider({ children }) {
       showToast(`Coupon ${found.code} applied`)
       return true
     },
-    [cartSubtotal, showToast],
+    [cartSubtotal, showToast, liveCoupons],
   )
 
   const removeCoupon = useCallback(() => {
@@ -314,21 +379,61 @@ export function ShopProvider({ children }) {
     ],
   )
 
-  const cancelOrder = useCallback(
-    (orderId) => {
-      setOrders((prev) =>
-        prev.map((o) => {
-          if (o.id !== orderId) return o
-          if (!['Pending', 'Confirmed'].includes(o.status)) {
-            showToast('This order can no longer be cancelled', 'error')
-            return o
-          }
-          showToast('Order cancelled')
-          return { ...o, status: 'Cancelled', paymentStatus: o.paymentStatus }
-        }),
-      )
+  /**
+   * Mirror a server-verified order into local order history.
+   * Paid status must already be confirmed by the backend.
+   */
+  const adoptServerOrder = useCallback(
+    (serverOrder, { clearCartAfter = true, adjustInventory = true } = {}) => {
+      if (!serverOrder?.id) {
+        throw new Error('Invalid server order')
+      }
+      if (adjustInventory && Array.isArray(serverOrder.items)) {
+        decreaseStockForCartItems(serverOrder.items)
+      }
+      const order = {
+        ...serverOrder,
+        payment: {
+          provider: serverOrder.paymentProvider || 'razorpay',
+          paymentId: serverOrder.razorpayPaymentId,
+          method: serverOrder.paymentMethod || 'razorpay',
+        },
+      }
+      setOrders((prev) => {
+        const without = prev.filter((o) => o.id !== order.id)
+        return [order, ...without]
+      })
+      if (clearCartAfter) clearCart()
+      return order
     },
-    [showToast],
+    [clearCart],
+  )
+
+  const cancelOrder = useCallback(
+    async (orderId) => {
+      const current = orders.find((o) => o.id === orderId)
+      if (!current) return
+      if (!['Pending', 'Confirmed'].includes(current.status)) {
+        showToast('This order can no longer be cancelled', 'error')
+        return
+      }
+      const patch = {
+        status: 'Cancelled',
+        cancelledAt: new Date().toISOString(),
+      }
+      try {
+        if (isFirebaseConfigured) {
+          await patchDocument('orders', orderId, patch)
+        }
+      } catch (err) {
+        console.warn('Cancel sync failed', err?.message || err)
+      }
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)),
+      )
+      showToast('Order cancelled')
+    },
+    [orders, showToast],
   )
 
   const getOrderById = useCallback(
@@ -362,9 +467,11 @@ export function ShopProvider({ children }) {
       clearCart,
       toggleWishlist,
       isWishlisted,
+      getCartQuantity,
       applyCoupon,
       removeCoupon,
       placeOrder,
+      adoptServerOrder,
       cancelOrder,
       getOrderById,
       showToast,
@@ -391,9 +498,11 @@ export function ShopProvider({ children }) {
       clearCart,
       toggleWishlist,
       isWishlisted,
+      getCartQuantity,
       applyCoupon,
       removeCoupon,
       placeOrder,
+      adoptServerOrder,
       cancelOrder,
       getOrderById,
       showToast,

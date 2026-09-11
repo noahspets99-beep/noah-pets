@@ -1,8 +1,9 @@
-import { products } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 export default function BestSellers() {
+  const { products } = useCatalog()
   const bestsellers = products.filter((p) => p.badge === 'Bestseller')
 
   return (

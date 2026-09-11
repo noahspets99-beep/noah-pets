@@ -24,24 +24,28 @@ const inputClass =
   'w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100'
 
 function estimateDiscount(coupon) {
+  const used = Number(coupon.used) || 0
   if (coupon.type === 'Fixed Amount') {
-    return coupon.used * coupon.value
+    return used * (Number(coupon.value) || 0)
   }
-  return coupon.used * (coupon.maxDiscount || coupon.value * 10)
+  return used * (Number(coupon.maxDiscount) || Number(coupon.value) || 0)
 }
 
 export default function CouponsPage() {
-  const { coupons, createCoupon, updateCoupon, deleteCoupon } = useAdminStore()
+  const { coupons, createCoupon, updateCoupon, deleteCoupon, dataStatus } =
+    useAdminStore()
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deactivateTarget, setDeactivateTarget] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const kpis = useMemo(() => {
-    const active = coupons.filter((c) => c.status === 'Active').length
+    const active = coupons.filter(
+      (c) => c.status === 'Active' || c.active !== false,
+    ).length
     const expired = coupons.filter((c) => c.status === 'Expired').length
-    const used = coupons.reduce((s, c) => s + c.used, 0)
+    const used = coupons.reduce((s, c) => s + (Number(c.used) || 0), 0)
     const totalDiscount = coupons.reduce((s, c) => s + estimateDiscount(c), 0)
     return { active, expired, used, totalDiscount }
   }, [coupons])
@@ -57,15 +61,15 @@ export default function CouponsPage() {
   const openEdit = (coupon) => {
     setEditing(coupon)
     setForm({
-      code: coupon.code,
-      type: coupon.type,
-      value: String(coupon.value),
-      minOrder: String(coupon.minOrder),
-      maxDiscount: String(coupon.maxDiscount),
-      startDate: coupon.startDate,
-      endDate: coupon.endDate,
-      usageLimit: String(coupon.usageLimit),
-      status: coupon.status,
+      code: coupon.code || '',
+      type: coupon.type || 'Percentage',
+      value: String(coupon.value ?? ''),
+      minOrder: String(coupon.minOrder ?? coupon.minOrderAmount ?? ''),
+      maxDiscount: String(coupon.maxDiscount ?? ''),
+      startDate: coupon.startDate || '',
+      endDate: coupon.endDate || '',
+      usageLimit: String(coupon.usageLimit ?? ''),
+      status: coupon.status || 'Active',
     })
     setFormOpen(true)
   }
@@ -82,6 +86,7 @@ export default function CouponsPage() {
       endDate: form.endDate,
       usageLimit: Number(form.usageLimit),
       status: form.status,
+      active: form.status === 'Active',
     }
     if (editing) {
       await updateCoupon(editing.id, payload)
@@ -93,10 +98,10 @@ export default function CouponsPage() {
     setForm(EMPTY_FORM)
   }
 
-  const confirmDelete = async () => {
-    if (deleteTarget) {
-      await deleteCoupon(deleteTarget.id)
-      setDeleteTarget(null)
+  const confirmDeactivate = async () => {
+    if (deactivateTarget) {
+      await deleteCoupon(deactivateTarget.id)
+      setDeactivateTarget(null)
     }
   }
 
@@ -116,6 +121,12 @@ export default function CouponsPage() {
           </button>
         }
       />
+
+      {dataStatus?.error && (
+        <div className="rounded-2xl border border-danger/30 bg-red-50 px-4 py-3 text-sm font-medium text-danger">
+          {dataStatus.error}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -158,8 +169,8 @@ export default function CouponsPage() {
         />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-card md:block">
-            <table className="w-full text-left text-sm">
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white shadow-card md:block">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Code</th>
@@ -174,21 +185,29 @@ export default function CouponsPage() {
               </thead>
               <tbody>
                 {items.map((c) => (
-                  <tr key={c.id} className="border-t border-line hover:bg-surface/60">
+                  <tr
+                    key={c.id}
+                    className="border-t border-line hover:bg-surface/60"
+                  >
                     <td className="px-4 py-3 font-bold text-ink">{c.code}</td>
                     <td className="px-4 py-3 text-muted">{c.type}</td>
-                    <td className="px-4 py-3 font-semibold">
-                      {c.type === 'Percentage' ? `${c.value}%` : formatINR(c.value)}
+                    <td className="px-4 py-3 text-muted">
+                      {c.type === 'Percentage'
+                        ? `${c.value}%`
+                        : formatINR(c.value)}
                     </td>
-                    <td className="px-4 py-3">{formatINR(c.minOrder)}</td>
-                    <td className="px-4 py-3">
-                      {c.used} / {c.usageLimit}
+                    <td className="px-4 py-3 text-muted">
+                      {formatINR(c.minOrder || c.minOrderAmount || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {c.used || 0}
+                      {c.usageLimit ? ` / ${c.usageLimit}` : ''}
                     </td>
                     <td className="px-4 py-3 text-muted">
                       {formatDate(c.endDate)}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={c.status} />
+                      <StatusBadge status={c.status || 'Active'} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
@@ -201,10 +220,10 @@ export default function CouponsPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteTarget(c)}
+                          onClick={() => setDeactivateTarget(c)}
                           className="font-semibold text-danger hover:text-red-600"
                         >
-                          Delete
+                          Deactivate
                         </button>
                       </div>
                     </td>
@@ -223,34 +242,20 @@ export default function CouponsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-ink">{c.code}</p>
-                    <p className="text-sm text-muted">{c.type}</p>
-                  </div>
-                  <StatusBadge status={c.status} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted">Value</p>
-                    <p className="font-semibold">
+                    <p className="mt-1 text-sm text-muted">
+                      {c.type} ·{' '}
                       {c.type === 'Percentage'
                         ? `${c.value}%`
                         : formatINR(c.value)}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted">Min Order</p>
-                    <p className="font-semibold">{formatINR(c.minOrder)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Used</p>
-                    <p className="font-semibold">
-                      {c.used} / {c.usageLimit}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Valid Until</p>
-                    <p className="font-semibold">{formatDate(c.endDate)}</p>
-                  </div>
+                  <StatusBadge status={c.status || 'Active'} />
                 </div>
+                <p className="mt-2 text-xs text-muted">
+                  Used {c.used || 0}
+                  {c.usageLimit ? ` / ${c.usageLimit}` : ''} · Until{' '}
+                  {formatDate(c.endDate)}
+                </p>
                 <div className="mt-3 flex gap-3">
                   <button
                     type="button"
@@ -261,11 +266,11 @@ export default function CouponsPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget(c)}
+                    onClick={() => setDeactivateTarget(c)}
                     className="inline-flex items-center gap-1 text-sm font-semibold text-danger"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete
+                    Deactivate
                   </button>
                 </div>
               </article>
@@ -285,7 +290,7 @@ export default function CouponsPage() {
         title={editing ? 'Edit Coupon' : 'Create Coupon'}
         size="lg"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => {
@@ -434,30 +439,31 @@ export default function CouponsPage() {
       </Modal>
 
       <Modal
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        title="Delete coupon?"
+        open={Boolean(deactivateTarget)}
+        onClose={() => setDeactivateTarget(null)}
+        title="Deactivate coupon?"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={() => setDeleteTarget(null)}
+              onClick={() => setDeactivateTarget(null)}
               className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-white"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={confirmDelete}
+              onClick={confirmDeactivate}
               className="rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600"
             >
-              Delete Coupon
+              Deactivate Coupon
             </button>
           </div>
         }
       >
         <p className="text-sm text-ink-soft">
-          Delete coupon <strong className="text-ink">{deleteTarget?.code}</strong>?
+          Deactivate coupon{' '}
+          <strong className="text-ink">{deactivateTarget?.code}</strong>?
           Customers will no longer be able to use this code.
         </p>
       </Modal>

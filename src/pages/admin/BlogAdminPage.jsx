@@ -239,8 +239,32 @@ export default function BlogAdminPage() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         title={editing ? 'Edit blog post' : 'New blog post'}
+        description={
+          editing
+            ? 'Update this post'
+            : 'Create a new blog post'
+        }
+        size="lg"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setFormOpen(false)}
+              className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="blog-form"
+              className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600"
+            >
+              {editing ? 'Save changes' : 'Create post'}
+            </button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+        <form id="blog-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-semibold">Title</label>
@@ -398,21 +422,6 @@ export default function BlogAdminPage() {
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-2 border-t border-line pt-4">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-surface"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600"
-            >
-              {editing ? 'Save changes' : 'Create post'}
-            </button>
-          </div>
         </form>
       </Modal>
 
@@ -420,27 +429,30 @@ export default function BlogAdminPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         title="Delete blog post?"
+        size="sm"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="rounded-xl bg-danger px-4 py-2.5 text-sm font-bold text-white"
+            >
+              Delete
+            </button>
+          </div>
+        }
       >
         <p className="text-sm text-muted">
           Delete &ldquo;{deleteTarget?.title}&rdquo; permanently from the admin
           blog list.
         </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setDeleteTarget(null)}
-            className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-surface"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={confirmDelete}
-            className="rounded-xl bg-danger px-4 py-2.5 text-sm font-bold text-white"
-          >
-            Delete
-          </button>
-        </div>
       </Modal>
     </div>
   )

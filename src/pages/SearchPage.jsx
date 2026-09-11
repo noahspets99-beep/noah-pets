@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
-import { products, searchProducts } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from '../components/ProductCard'
 import SeoHead from '../components/seo/SeoHead'
 
 function SearchInner({ initialQ }) {
+  const { searchProducts } = useCatalog()
   const [, setParams] = useSearchParams()
   const [input, setInput] = useState(initialQ)
   const [debounced, setDebounced] = useState(initialQ)
@@ -23,8 +24,8 @@ function SearchInner({ initialQ }) {
   }, [debounced, initialQ, setParams])
 
   const results = useMemo(
-    () => (debounced.trim() ? searchProducts(products, debounced) : []),
-    [debounced],
+    () => (debounced.trim() ? searchProducts(debounced) : []),
+    [debounced, searchProducts],
   )
 
   const emptyQuery = !debounced.trim()

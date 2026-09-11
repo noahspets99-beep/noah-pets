@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingBag, Star } from 'lucide-react'
+import { Heart, Minus, Plus, ShoppingBag, Star } from 'lucide-react'
 import { formatPrice } from '../data/products'
 import { useShop } from '../context/useShop'
 
@@ -13,26 +12,39 @@ const badgeStyles = {
 }
 
 export default function ProductCard({ product, compact = false }) {
-  const { addToCart, toggleWishlist, isWishlisted } = useShop()
-  const [heartAnim, setHeartAnim] = useState(false)
-  const [added, setAdded] = useState(false)
+  const {
+    addToCart,
+    updateQuantity,
+    getCartQuantity,
+    toggleWishlist,
+    isWishlisted,
+  } = useShop()
+  const quantityInCart = getCartQuantity(product.id)
   const wishlisted = isWishlisted(product.id)
   const productPath = `/product/${product.slug || product.id}`
 
   const handleWishlist = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    setHeartAnim(true)
     toggleWishlist(product)
-    setTimeout(() => setHeartAnim(false), 350)
   }
 
   const handleAdd = (e) => {
     e.preventDefault()
     e.stopPropagation()
     addToCart(product)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 900)
+  }
+
+  const handleDecrease = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    updateQuantity(product.id, quantityInCart - 1, null)
+  }
+
+  const handleIncrease = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    addToCart(product)
   }
 
   return (
@@ -43,6 +55,9 @@ export default function ProductCard({ product, compact = false }) {
             src={product.image}
             alt={product.name}
             loading="lazy"
+            decoding="async"
+            width={400}
+            height={400}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         </Link>
@@ -66,9 +81,7 @@ export default function ProductCard({ product, compact = false }) {
               : `Add ${product.name} to wishlist`
           }
           aria-pressed={wishlisted}
-          className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/95 text-muted shadow-soft backdrop-blur transition hover:scale-105 hover:text-danger sm:right-3 sm:top-3 ${
-            heartAnim ? 'animate-heart' : ''
-          }`}
+          className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/95 text-muted shadow-soft backdrop-blur transition hover:scale-105 hover:text-danger sm:right-3 sm:top-3"
         >
           <Heart
             className={`h-4 w-4 ${wishlisted ? 'fill-danger text-danger' : ''}`}
@@ -139,19 +152,40 @@ export default function ProductCard({ product, compact = false }) {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={!product.inStock}
-            className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-              added
-                ? 'bg-success text-white animate-cart-bounce'
-                : 'bg-brand-500 text-white hover:bg-brand-600'
-            }`}
-          >
-            <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-            {added ? 'Added!' : 'Add to Cart'}
-          </button>
+          {quantityInCart > 0 ? (
+            <div className="flex w-full items-center justify-between gap-2 rounded-xl bg-brand-50 px-2 py-1.5">
+              <button
+                type="button"
+                onClick={handleDecrease}
+                aria-label={`Decrease ${product.name} quantity`}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-ink shadow-soft transition hover:bg-white active:scale-95"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-8 text-center text-sm font-bold text-ink">
+                {quantityInCart}
+              </span>
+              <button
+                type="button"
+                onClick={handleIncrease}
+                disabled={!product.inStock}
+                aria-label={`Increase ${product.name} quantity`}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white transition hover:bg-brand-600 active:scale-95 disabled:opacity-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!product.inStock}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+              Add to Cart
+            </button>
+          )}
         </div>
       </div>
     </article>

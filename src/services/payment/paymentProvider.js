@@ -16,6 +16,22 @@ export class PaymentProvider {
   }
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function readJson(res) {
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const message = data?.message || data?.error || `Request failed (${res.status})`
+    const err = new Error(message)
+    err.code = data?.error
+    err.status = res.status
+    throw err
+  }
+  return data
+}
+
 /**
  * Demo provider — simulates a successful card/UPI payment.
  * Never put Razorpay secret keys in the frontend.
@@ -57,44 +73,58 @@ export class DemoPaymentProvider extends PaymentProvider {
 }
 
 /**
- * Placeholder for future Razorpay integration.
- * createPaymentOrder / verifyPayment MUST call a secure backend —
- * never expose Razorpay key_secret in the browser.
+ * Razorpay provider — talks ONLY to backend endpoints.
+ * key_secret must never appear in the browser.
  */
 export class RazorpayPaymentProvider extends PaymentProvider {
-  constructor({ createOrderUrl, verifyUrl } = {}) {
+  constructor({ createOrderUrl, verifyUrl, statusUrl } = {}) {
     super()
-    this.createOrderUrl = createOrderUrl || '/api/payments/razorpay/create-order'
+    this.createOrderUrl =
+      createOrderUrl || '/api/payments/razorpay/create-order'
     this.verifyUrl = verifyUrl || '/api/payments/razorpay/verify'
+    this.statusUrl = statusUrl || '/api/payments/razorpay/status'
   }
 
   async createPaymentOrder(payload) {
+    // Only send order identity — never rely on client amount for charging
+    const headers = { 'Content-Type': 'application/json' }
+    if (payload.idToken) {
+      headers.Authorization = `Bearer ${payload.idToken}`
+    }
     const res = await fetch(this.createOrderUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body: JSON.stringify({
+        orderId: payload.orderId,
+        accessToken: payload.accessToken,
+      }),
     })
-    if (!res.ok) throw new Error('Failed to create Razorpay order')
-    return res.json()
+    return readJson(res)
   }
 
   async verifyPayment(payload) {
+    const headers = { 'Content-Type': 'application/json' }
+    if (payload.idToken) {
+      headers.Authorization = `Bearer ${payload.idToken}`
+    }
     const res = await fetch(this.verifyUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body: JSON.stringify({
+        orderId: payload.orderId,
+        accessToken: payload.accessToken,
+        razorpay_order_id: payload.razorpay_order_id,
+        razorpay_payment_id: payload.razorpay_payment_id,
+        razorpay_signature: payload.razorpay_signature,
+      }),
     })
-    if (!res.ok) throw new Error('Failed to verify Razorpay payment')
-    return res.json()
+    return readJson(res)
   }
 
   async getPaymentStatus(paymentId) {
-    const res = await fetch(`/api/payments/razorpay/status/${paymentId}`)
-    if (!res.ok) throw new Error('Failed to fetch payment status')
-    return res.json()
+    const res = await fetch(
+      `${this.statusUrl}/${encodeURIComponent(paymentId)}`,
+    )
+    return readJson(res)
   }
-}
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

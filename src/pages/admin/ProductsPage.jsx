@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Copy,
-  Download,
   Eye,
   MoreVertical,
   Package,
@@ -10,7 +9,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Upload,
 } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
@@ -39,7 +37,7 @@ function stockLevel(product) {
   return 'in'
 }
 
-function RowActions({ product, onView, onDuplicate, onDelete }) {
+function RowActions({ product, onView, onDuplicate, onDeactivate }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const navigate = useNavigate()
@@ -102,12 +100,12 @@ function RowActions({ product, onView, onDuplicate, onDelete }) {
             type="button"
             onClick={() => {
               setOpen(false)
-              onDelete(product.id)
+              onDeactivate(product)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-danger hover:bg-red-50"
           >
             <Trash2 className="h-4 w-4" />
-            Delete
+            Deactivate
           </button>
         </div>
       )}
@@ -172,11 +170,9 @@ export default function ProductsPage() {
   const {
     products,
     categories,
-    pushToast,
     deleteProduct,
-    bulkDeleteProducts,
-    bulkUpdateProducts,
     duplicateProduct,
+    dataStatus,
   } = useAdminStore()
 
   const [search, setSearch] = useState('')
@@ -188,8 +184,7 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState([])
   const [viewProduct, setViewProduct] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [deactivateTarget, setDeactivateTarget] = useState(null)
 
   const categoryOptions = useMemo(
     () => [...new Set(categories.map((c) => c.name))].sort(),
@@ -267,15 +262,10 @@ export default function ProductsPage() {
     )
   }
 
-  const confirmDelete = async () => {
-    if (deleteTarget?.type === 'single') {
-      await deleteProduct(deleteTarget.id)
-    } else if (deleteTarget?.type === 'bulk') {
-      await bulkDeleteProducts(selected)
-      setSelected([])
-    }
-    setDeleteTarget(null)
-    setBulkDeleteOpen(false)
+  const confirmDeactivate = async () => {
+    if (!deactivateTarget) return
+    await deleteProduct(deactivateTarget.id)
+    setDeactivateTarget(null)
   }
 
   const selectClass =
@@ -288,33 +278,21 @@ export default function ProductsPage() {
         subtitle={`${products.length} products in catalog`}
         breadcrumbs={['Catalog', 'Products']}
         actions={
-          <>
-            <button
-              type="button"
-              onClick={() => pushToast('Import coming soon', 'info')}
-              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink transition hover:bg-surface"
-            >
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Import</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => pushToast('Export coming soon', 'info')}
-              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink transition hover:bg-surface"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
-            <Link
-              to="/admin/products/new"
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-600"
-            >
-              <Plus className="h-4 w-4" />
-              Add Product
-            </Link>
-          </>
+          <Link
+            to="/admin/products/new"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-600"
+          >
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Link>
         }
       />
+
+      {dataStatus?.error && (
+        <div className="mb-4 rounded-2xl border border-danger/30 bg-red-50 px-4 py-3 text-sm font-medium text-danger">
+          {dataStatus.error}
+        </div>
+      )}
 
       <div className="mb-4 space-y-3 rounded-2xl border border-line bg-white p-4 shadow-card">
         <div className="relative">
@@ -402,52 +380,6 @@ export default function ProductsPage() {
           </select>
         </div>
       </div>
-
-      {selected.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3">
-          <span className="text-sm font-semibold text-brand-800">
-            {selected.length} selected
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteTarget({ type: 'bulk' })
-              setBulkDeleteOpen(true)
-            }}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-danger ring-1 ring-line"
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={() => bulkUpdateProducts(selected, { status: 'Active' })}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-line"
-          >
-            Mark Active
-          </button>
-          <button
-            type="button"
-            onClick={() => bulkUpdateProducts(selected, { status: 'Draft' })}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-line"
-          >
-            Mark Inactive
-          </button>
-          <button
-            type="button"
-            onClick={() => pushToast('Export coming soon', 'info')}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-line"
-          >
-            Export
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelected([])}
-            className="ml-auto text-xs font-semibold text-brand-700"
-          >
-            Clear
-          </button>
-        </div>
-      )}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -543,7 +475,7 @@ export default function ProductsPage() {
                         product={p}
                         onView={setViewProduct}
                         onDuplicate={duplicateProduct}
-                        onDelete={(id) => setDeleteTarget({ type: 'single', id })}
+                        onDeactivate={setDeactivateTarget}
                       />
                     </td>
                   </tr>
@@ -584,7 +516,7 @@ export default function ProductsPage() {
                     product={p}
                     onView={setViewProduct}
                     onDuplicate={duplicateProduct}
-                    onDelete={(id) => setDeleteTarget({ type: 'single', id })}
+                    onDeactivate={setDeactivateTarget}
                   />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 text-sm">
@@ -628,7 +560,7 @@ export default function ProductsPage() {
         onClose={() => setViewProduct(null)}
         title="Product Quick View"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => setViewProduct(null)}
@@ -655,39 +587,33 @@ export default function ProductsPage() {
       </Modal>
 
       <Modal
-        open={Boolean(deleteTarget) || bulkDeleteOpen}
-        onClose={() => {
-          setDeleteTarget(null)
-          setBulkDeleteOpen(false)
-        }}
-        title="Confirm Delete"
+        open={Boolean(deactivateTarget)}
+        onClose={() => setDeactivateTarget(null)}
+        title="Deactivate product?"
         size="sm"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={() => {
-                setDeleteTarget(null)
-                setBulkDeleteOpen(false)
-              }}
+              onClick={() => setDeactivateTarget(null)}
               className="rounded-xl border border-line px-4 py-2 text-sm font-semibold"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={confirmDelete}
+              onClick={confirmDeactivate}
               className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white"
             >
-              Delete
+              Deactivate
             </button>
           </div>
         }
       >
         <p className="text-sm text-ink-soft">
-          {deleteTarget?.type === 'bulk'
-            ? `Are you sure you want to delete ${selected.length} product${selected.length === 1 ? '' : 's'}? This action cannot be undone.`
-            : 'Are you sure you want to delete this product? This action cannot be undone.'}
+          Deactivate{' '}
+          <strong className="text-ink">{deactivateTarget?.name}</strong>? It will
+          be hidden from the storefront (soft delete).
         </p>
       </Modal>
     </div>

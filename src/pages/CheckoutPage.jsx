@@ -1,14 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatPrice } from '../data/products'
 import { TN_DISTRICTS, STORE } from '../config/store'
 import { useShop } from '../context/useShop'
+import { useAuth } from '../context/useAuth'
 import {
-  createPaymentOrder,
+  startRazorpayCheckout,
   verifyPayment,
   getActivePaymentProviderName,
+  openRazorpayCheckout,
+  loadRazorpayCheckout,
+  createPaymentOrder,
 } from '../services/payment/paymentService'
 import SeoHead from '../components/seo/SeoHead'
+import {
+  clearCheckoutDraft,
+  loadCheckoutDraft,
+  saveCheckoutDraft,
+} from '../lib/checkoutDraft'
 
 const initialForm = {
   name: '',
@@ -31,12 +40,42 @@ export default function CheckoutPage() {
     shipping,
     tax,
     cartTotal,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
     placeOrder,
+    adoptServerOrder,
     showToast,
   } = useShop()
-  const [form, setForm] = useState(initialForm)
+  const { user, authReady, isAuthenticated } = useAuth()
+  const [form, setForm] = useState(() => loadCheckoutDraft() || initialForm)
+  const [couponCode, setCouponCode] = useState('')
   const [paying, setPaying] = useState(false)
   const provider = getActivePaymentProviderName()
+
+  useEffect(() => {
+    if (provider === 'razorpay') {
+      loadRazorpayCheckout().catch(() => {})
+    }
+  }, [provider])
+
+  useEffect(() => {
+    saveCheckoutDraft(form)
+  }, [form])
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated || !user) return
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || user.displayName || '',
+      email: prev.email || user.email || '',
+    }))
+  }, [authReady, isAuthenticated, user])
+
+  const handleCoupon = (e) => {
+    e?.preventDefault?.()
+    applyCoupon(couponCode)
+  }
 
   const onChange = (e) => {
     const { name, value } = e.target
@@ -54,10 +93,26 @@ export default function CheckoutPage() {
     return null
   }
 
+  const goSignInForPayment = () => {
+    saveCheckoutDraft(form)
+    showToast('Sign in to continue with payment', 'info')
+    navigate('/account', {
+      state: {
+        next: '/checkout',
+        authMessage: 'Sign in to complete your payment.',
+      },
+    })
+  }
+
   const payAndPlace = async (e) => {
     e.preventDefault()
     if (cart.length === 0) {
       showToast('Your cart is empty', 'error')
+      return
+    }
+    if (!authReady) return
+    if (!isAuthenticated || !user) {
+      goSignInForPayment()
       return
     }
     const err = validate()
@@ -65,44 +120,135 @@ export default function CheckoutPage() {
       showToast(err, 'error')
       return
     }
+    if (paying) return
     setPaying(true)
     try {
-      const draftId = `TMP-${Date.now().toString().slice(-6)}`
-      const paymentOrder = await createPaymentOrder({
-        amount: cartTotal,
-        currency: 'INR',
-        orderId: draftId,
-        customer: {
-          name: form.name,
-          email: form.email,
-          contact: form.mobile,
-        },
-      })
-      const verified = await verifyPayment({
-        paymentOrderId: paymentOrder.paymentOrderId,
-        orderId: draftId,
-      })
-      if (verified.status !== 'paid') {
-        throw new Error('Payment not verified')
+      if (provider === 'razorpay') {
+        await payWithRazorpay()
+      } else {
+        await payWithDemo()
       }
-      const order = placeOrder({
-        customer: { ...form },
-        status: 'Confirmed',
-        paymentStatus: 'Paid',
-        payment: {
-          provider: verified.provider || provider,
-          paymentId: verified.paymentId,
-          method: verified.method || 'demo',
-        },
-        shippingAddress: { ...form },
-      })
-      showToast('Payment successful — order placed')
-      navigate(`/orders/${order.id}`)
     } catch (error) {
-      showToast(error.message || 'Payment failed', 'error')
+      if (error?.code === 'cancelled') {
+        showToast('Payment cancelled — your order was not charged', 'info')
+      } else if (error?.status === 401 || error?.code === 'unauthorized') {
+        goSignInForPayment()
+      } else if (error?.name === 'AbortError' || error?.code === 'start_timeout') {
+        showToast('Payment could not be started. Please try again.', 'error')
+      } else {
+        showToast(error.message || 'Payment could not be started. Please try again.', 'error')
+      }
     } finally {
       setPaying(false)
     }
+  }
+
+  const payWithDemo = async () => {
+    const draftId = `TMP-${Date.now().toString().slice(-6)}`
+    const paymentOrder = await createPaymentOrder({
+      amount: cartTotal,
+      currency: 'INR',
+      orderId: draftId,
+      customer: {
+        name: form.name,
+        email: form.email,
+        contact: form.mobile,
+      },
+    })
+    const verified = await verifyPayment({
+      paymentOrderId: paymentOrder.paymentOrderId,
+      orderId: draftId,
+    })
+    if (verified.status !== 'paid') {
+      throw new Error('Payment not verified')
+    }
+    const order = placeOrder({
+      customer: { ...form },
+      customerId: user.uid,
+      status: 'Confirmed',
+      paymentStatus: 'Paid',
+      payment: {
+        provider: verified.provider || provider,
+        paymentId: verified.paymentId,
+        method: verified.method || 'demo',
+      },
+      shippingAddress: { ...form },
+    })
+    clearCheckoutDraft()
+    showToast('Payment successful — order placed')
+    navigate(`/orders/${order.id}`)
+  }
+
+  const payWithRazorpay = async () => {
+    const idToken = await user.getIdToken()
+    const paymentOrder = await startRazorpayCheckout({
+      items: cart.map((item) => ({
+        productId: item.id,
+        variantId: item.variantId || null,
+        quantity: Number(item.quantity) || 1,
+      })),
+      customer: { ...form },
+      shippingAddress: { ...form },
+      couponCode: appliedCoupon?.code || null,
+      idToken,
+    })
+
+    const razorpayOrderId =
+      paymentOrder.razorpayOrderId || paymentOrder.paymentOrderId
+    const amountPaise = Number(paymentOrder.amountPaise)
+    const currency = String(paymentOrder.currency || 'INR').toUpperCase()
+    const keyId = paymentOrder.keyId || undefined
+
+    if (!razorpayOrderId || !String(razorpayOrderId).startsWith('order_')) {
+      throw new Error('Payment could not be started. Please try again.')
+    }
+    if (!Number.isInteger(amountPaise) || amountPaise < 100) {
+      throw new Error('Payment could not be started. Please try again.')
+    }
+
+    if (import.meta.env.DEV) {
+      console.info('[checkout] razorpay create-order response', {
+        internalOrderId: paymentOrder.orderId,
+        razorpayOrderId,
+        amountPaise,
+        currency,
+        keyIdPrefix: keyId ? String(keyId).slice(0, 12) : null,
+      })
+    }
+
+    const checkoutResult = await openRazorpayCheckout({
+      keyId,
+      razorpayOrderId,
+      amountPaise,
+      currency,
+      customer: form,
+      orderId: paymentOrder.orderId,
+      description: `Order ${paymentOrder.orderId}`,
+    })
+
+    const verified = await verifyPayment({
+      orderId: paymentOrder.orderId,
+      accessToken: paymentOrder.accessToken,
+      razorpay_order_id: checkoutResult.razorpay_order_id,
+      razorpay_payment_id: checkoutResult.razorpay_payment_id,
+      razorpay_signature: checkoutResult.razorpay_signature,
+      idToken,
+    })
+
+    if (verified.status !== 'paid') {
+      throw new Error('Payment not verified')
+    }
+
+    // Paid orders are written only by the payments API (Admin SDK). Do not
+    // mirror paymentStatus from the browser — Firestore rules reject it.
+    const serverOrder = verified.order
+    const localOrder = adoptServerOrder(serverOrder, {
+      clearCartAfter: true,
+      adjustInventory: true,
+    })
+    clearCheckoutDraft()
+    showToast('Payment successful — order placed')
+    navigate(`/orders/${localOrder.id}`)
   }
 
   if (cart.length === 0) {
@@ -123,12 +269,27 @@ export default function CheckoutPage() {
   const fieldClass =
     'mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100'
 
+  const payDisabled = paying || !authReady
+  let payLabel
+  if (!authReady) {
+    payLabel = 'Checking account…'
+  } else if (!isAuthenticated) {
+    payLabel = 'Sign in to continue'
+  } else if (paying) {
+    payLabel = 'Processing payment…'
+  } else if (provider === 'razorpay') {
+    payLabel = `Pay ${formatPrice(cartTotal)}`
+  } else {
+    payLabel = `Pay ${formatPrice(cartTotal)} (Demo)`
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead title="Checkout" noindex canonical="/checkout" />
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">Checkout</h1>
       <p className="mt-2 text-sm text-muted">
-        Delivery across Tamil Nadu · Payment via {provider} provider
+        Delivery across Tamil Nadu · Payment via{' '}
+        {provider === 'razorpay' ? 'Razorpay' : 'demo'} provider
       </p>
 
       <form
@@ -257,6 +418,45 @@ export default function CheckoutPage() {
               </li>
             ))}
           </ul>
+
+          {appliedCoupon ? (
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-brand-50 px-3 py-2 text-sm">
+              <span className="font-semibold text-brand-700">
+                {appliedCoupon.code}
+              </span>
+              <button
+                type="button"
+                onClick={removeCoupon}
+                className="text-xs font-semibold text-muted hover:text-danger"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 flex gap-2">
+              <input
+                name="coupon"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleCoupon()
+                  }
+                }}
+                placeholder="Coupon code"
+                className="flex-1 rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+              />
+              <button
+                type="button"
+                onClick={handleCoupon}
+                className="rounded-xl border border-line px-3 py-2 text-sm font-semibold hover:bg-surface"
+              >
+                Apply
+              </button>
+            </div>
+          )}
+
           <dl className="mt-4 space-y-2 border-t border-line pt-4 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted">Subtotal</dt>
@@ -283,14 +483,22 @@ export default function CheckoutPage() {
           </dl>
           <button
             type="submit"
-            disabled={paying}
+            disabled={payDisabled}
             className="mt-5 w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-60"
           >
-            {paying ? 'Processing payment…' : `Pay ${formatPrice(cartTotal)} (Demo)`}
+            {payLabel}
           </button>
-          <p className="mt-2 text-center text-xs text-muted">
-            Demo checkout simulates a successful UPI/card payment.
-          </p>
+          {!authReady ? null : !isAuthenticated ? (
+            <p className="mt-2 text-center text-xs text-muted">
+              Sign in or create an account to place your order securely.
+            </p>
+          ) : (
+            <p className="mt-2 text-center text-xs text-muted">
+              {provider === 'razorpay'
+                ? 'Secure payment powered by Razorpay. Your order is confirmed only after server verification.'
+                : 'Demo checkout simulates a successful UPI/card payment.'}
+            </p>
+          )}
         </aside>
       </form>
     </div>

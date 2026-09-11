@@ -1,22 +1,28 @@
 import { useMemo, useState } from 'react'
-import {
-  filterProducts,
-  filterTabs,
-  products,
-  searchProducts,
-} from '../data/products'
+import { filterTabs } from '../data/products'
+import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 export default function FeaturedProducts() {
   const { searchQuery } = useShop()
+  const { products, filterProducts, searchProducts } = useCatalog()
   const [activeTab, setActiveTab] = useState('All')
   const [sortBy, setSortBy] = useState('popular')
 
   const filtered = useMemo(() => {
-    let list = searchProducts(products, searchQuery)
-    list = filterProducts(list, activeTab)
+    let list =
+      activeTab === 'All' ? products : filterProducts(activeTab)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      list = list.filter((p) =>
+        [p.name, p.brand, p.category, ...(p.tags || [])]
+          .join(' ')
+          .toLowerCase()
+          .includes(q),
+      )
+    }
 
     const sorted = [...list]
     if (sortBy === 'price-low') sorted.sort((a, b) => a.price - b.price)
@@ -24,7 +30,7 @@ export default function FeaturedProducts() {
     else if (sortBy === 'rating') sorted.sort((a, b) => b.rating - a.rating)
     else sorted.sort((a, b) => b.reviews - a.reviews)
     return sorted
-  }, [activeTab, sortBy, searchQuery])
+  }, [activeTab, sortBy, searchQuery, products, filterProducts])
 
   return (
     <section id="featured" className="bg-white py-12 sm:py-16">

@@ -1,10 +1,23 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, PawPrint } from 'lucide-react'
-import { isAdminLoggedIn, loginAdmin } from '../../services/adminAuth'
+import { useAuth } from '../../context/useAuth'
+import { loginAdmin, requestPasswordReset } from '../../services/adminAuth'
+
+function AuthLoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex flex-col items-center gap-3">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-brand-200 border-t-brand-500" />
+        <p className="text-sm font-medium text-muted">Checking authentication…</p>
+      </div>
+    </div>
+  )
+}
 
 export default function AdminLogin() {
   const navigate = useNavigate()
+  const { authReady, isAdmin, isAuthenticated, isFirebaseConfigured } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
@@ -13,22 +26,49 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false)
   const [forgotMsg, setForgotMsg] = useState('')
 
-  if (isAdminLoggedIn()) {
+  if (!authReady) {
+    return <AuthLoadingScreen />
+  }
+
+  if (isAuthenticated && isAdmin) {
     return <Navigate to="/admin/dashboard" replace />
+  }
+
+  if (isAuthenticated && !isAdmin) {
+    return <Navigate to="/" replace />
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setForgotMsg('')
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 450))
-    const result = loginAdmin(email, password, remember)
+    const result = await loginAdmin(email, password, remember)
     setLoading(false)
     if (!result.ok) {
       setError(result.error)
       return
     }
-    navigate('/admin/dashboard', { replace: true })
+    if (result.isAdmin) {
+      navigate('/admin/dashboard', { replace: true })
+      return
+    }
+    navigate('/', { replace: true })
+  }
+
+  const handleForgotPassword = async () => {
+    setError('')
+    setForgotMsg('')
+    if (!email.trim()) {
+      setError('Enter your email above, then tap Forgot password.')
+      return
+    }
+    const result = await requestPasswordReset(email)
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    setForgotMsg(result.message)
   }
 
   return (
@@ -87,8 +127,18 @@ export default function AdminLogin() {
             Welcome back
           </h2>
           <p className="mt-2 text-sm text-muted">
-            Sign in to your admin account
+            Sign in with your Noah Pets administrator account
           </p>
+
+          {!isFirebaseConfigured && (
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
+            >
+              Firebase is not configured. Add VITE_FIREBASE_* values to
+              .env.local and restart the dev server.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             {error && (
@@ -158,11 +208,7 @@ export default function AdminLogin() {
               </label>
               <button
                 type="button"
-                onClick={() =>
-                  setForgotMsg(
-                    'Password recovery will be available after authentication is connected.',
-                  )
-                }
+                onClick={handleForgotPassword}
                 className="text-sm font-semibold text-brand-600 hover:text-brand-700"
               >
                 Forgot password?
@@ -177,7 +223,7 @@ export default function AdminLogin() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isFirebaseConfigured}
               className="flex w-full items-center justify-center rounded-xl bg-brand-500 py-3 text-sm font-bold text-white transition hover:bg-brand-600 active:scale-[0.99] disabled:opacity-60"
             >
               {loading ? 'Signing in...' : 'Sign In'}

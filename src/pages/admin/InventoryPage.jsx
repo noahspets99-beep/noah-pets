@@ -5,7 +5,7 @@ import StatusBadge from '../../admin/components/StatusBadge'
 import Pagination from '../../admin/components/Pagination'
 import EmptyState from '../../admin/components/EmptyState'
 import { paginate } from '../../admin/utils'
-import { useInventoryService } from '../../services/adminServices'
+import { useAdminStore } from '../../context/AdminStore'
 
 const inputClass =
   'w-full rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100'
@@ -25,12 +25,12 @@ function stockStatus(product) {
 }
 
 export default function InventoryPage() {
-  const inventory = useInventoryService()
-  const products = inventory.list()
+  const { products, updateProduct, pushToast } = useAdminStore()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [drafts, setDrafts] = useState({})
+  const [savingId, setSavingId] = useState(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -40,8 +40,12 @@ export default function InventoryPage() {
       if (filter === 'out' && status !== 'Out of Stock') return false
       if (!q) return true
       return (
-        p.name.toLowerCase().includes(q) ||
-        (p.sku || '').toLowerCase().includes(q)
+        String(p.name || '')
+          .toLowerCase()
+          .includes(q) ||
+        String(p.sku || '')
+          .toLowerCase()
+          .includes(q)
       )
     })
   }, [products, filter, search])
@@ -58,13 +62,7 @@ export default function InventoryPage() {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
-        ...(prev[id] || {}),
-        stock:
-          prev[id]?.stock ??
-          String(products.find((x) => x.id === id)?.stock ?? 0),
-        lowStockThreshold:
-          prev[id]?.lowStockThreshold ??
-          String(products.find((x) => x.id === id)?.lowStockThreshold ?? 10),
+        ...(prev[id] || getDraft(products.find((x) => x.id === id) || {})),
         [field]: value,
       },
     }))
@@ -77,144 +75,108 @@ export default function InventoryPage() {
     let status = p.status
     if (stock === 0) status = 'Out of Stock'
     else if (status === 'Out of Stock') status = 'Active'
-    await inventory.update(p.id, { stock, lowStockThreshold, status })
-    setDrafts((prev) => {
-      const next = { ...prev }
-      delete next[p.id]
-      return next
-    })
+    setSavingId(p.id)
+    try {
+      await updateProduct(p.id, { stock, lowStockThreshold, status })
+      setDrafts((prev) => {
+        const next = { ...prev }
+        delete next[p.id]
+        return next
+      })
+    } catch (err) {
+      pushToast(err?.message || 'Failed to update stock', 'error')
+    } finally {
+      setSavingId(null)
+    }
   }
-
-  const counts = useMemo(() => {
-    let low = 0
-    let out = 0
-    products.forEach((p) => {
-      const s = stockStatus(p)
-      if (s === 'Low Stock') low += 1
-      if (s === 'Out of Stock') out += 1
-    })
-    return { all: products.length, low, out }
-  }, [products])
 
   return (
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="Inventory"
-        subtitle="Track stock levels, thresholds, and variant availability."
+        subtitle="Update stock in Firebase — storefront availability follows immediately."
       />
 
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { key: 'all', label: 'All SKUs', value: counts.all },
-          { key: 'low', label: 'Low stock', value: counts.low },
-          { key: 'out', label: 'Out of stock', value: counts.out },
-        ].map(({ key, label, value }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              setFilter(key)
-              setPage(1)
-            }}
-            className={`rounded-2xl border p-4 text-left shadow-card transition ${
-              filter === key
-                ? 'border-brand-200 bg-brand-50 ring-1 ring-brand-100'
-                : 'border-line bg-white hover:bg-surface'
-            }`}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              {label}
-            </p>
-            <p className="mt-1 text-2xl font-extrabold text-ink">{value}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2">
-          {FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                setFilter(key)
-                setPage(1)
-              }}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                filter === key
-                  ? 'bg-brand-500 text-white'
-                  : 'border border-line bg-white text-ink-soft hover:bg-surface'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="relative max-w-sm flex-1">
+      <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
+            type="search"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
               setPage(1)
             }}
-            placeholder="Search name or SKU..."
-            className="w-full rounded-xl border border-line bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            placeholder="Search name or SKU…"
+            className="w-full rounded-xl border border-line bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
           />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => {
+                setFilter(f.key)
+                setPage(1)
+              }}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                filter === f.key
+                  ? 'bg-ink text-white'
+                  : 'bg-surface text-ink-soft ring-1 ring-line'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState
           icon={Boxes}
           title="No inventory rows"
-          description="No products match this stock filter."
+          description={
+            products.length === 0
+              ? 'No products in Firebase yet.'
+              : 'No products match this filter.'
+          }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
-          <div className="overflow-x-auto">
+        <>
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white shadow-card md:block">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-line bg-surface/60 text-xs uppercase tracking-wide text-muted">
+              <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Product</th>
                   <th className="px-4 py-3 font-semibold">SKU</th>
                   <th className="px-4 py-3 font-semibold">Stock</th>
-                  <th className="px-4 py-3 font-semibold">Threshold</th>
-                  <th className="px-4 py-3 font-semibold">Variants</th>
+                  <th className="px-4 py-3 font-semibold">Low threshold</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold" />
+                  <th className="px-4 py-3 font-semibold">Save</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody>
                 {items.map((p) => {
                   const d = getDraft(p)
-                  const dirty =
-                    Number(d.stock) !== Number(p.stock) ||
-                    Number(d.lowStockThreshold) !== Number(p.lowStockThreshold)
                   return (
-                    <tr key={p.id} className="hover:bg-surface/40">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-ink">{p.name}</p>
-                        <p className="text-xs text-muted">{p.category}</p>
+                    <tr key={p.id} className="border-t border-line">
+                      <td className="px-4 py-3 font-semibold text-ink">
+                        {p.name}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">
-                        {p.sku}
-                      </td>
+                      <td className="px-4 py-3 text-muted">{p.sku || '—'}</td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          className={`${inputClass} w-24`}
                           value={d.stock}
                           onChange={(e) =>
                             setDraftField(p.id, 'stock', e.target.value)
                           }
-                          className={`${inputClass} w-24`}
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          className={`${inputClass} w-24`}
                           value={d.lowStockThreshold}
                           onChange={(e) =>
                             setDraftField(
@@ -223,36 +185,19 @@ export default function InventoryPage() {
                               e.target.value,
                             )
                           }
-                          className={`${inputClass} w-24`}
                         />
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted">
-                        {p.variants?.length ? (
-                          <ul className="space-y-0.5">
-                            {p.variants.slice(0, 3).map((v) => (
-                              <li key={v.id || v.sku}>
-                                {v.label}: {v.stock}
-                              </li>
-                            ))}
-                            {p.variants.length > 3 && (
-                              <li>+{p.variants.length - 3} more</li>
-                            )}
-                          </ul>
-                        ) : (
-                          '—'
-                        )}
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={stockStatus(p)} />
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3">
                         <button
                           type="button"
-                          disabled={!dirty}
+                          disabled={savingId === p.id}
                           onClick={() => saveRow(p)}
-                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
                         >
-                          Save
+                          {savingId === p.id ? 'Saving…' : 'Save'}
                         </button>
                       </td>
                     </tr>
@@ -261,14 +206,63 @@ export default function InventoryPage() {
               </tbody>
             </table>
           </div>
-          <div className="border-t border-line px-4 py-3">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onChange={setPage}
-            />
+
+          <div className="space-y-3 md:hidden">
+            {items.map((p) => {
+              const d = getDraft(p)
+              return (
+                <article
+                  key={p.id}
+                  className="rounded-2xl border border-line bg-white p-4 shadow-card"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-ink">{p.name}</p>
+                      <p className="text-xs text-muted">{p.sku || '—'}</p>
+                    </div>
+                    <StatusBadge status={stockStatus(p)} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="text-xs font-semibold text-muted">
+                      Stock
+                      <input
+                        className={`${inputClass} mt-1`}
+                        value={d.stock}
+                        onChange={(e) =>
+                          setDraftField(p.id, 'stock', e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-muted">
+                      Threshold
+                      <input
+                        className={`${inputClass} mt-1`}
+                        value={d.lowStockThreshold}
+                        onChange={(e) =>
+                          setDraftField(
+                            p.id,
+                            'lowStockThreshold',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingId === p.id}
+                    onClick={() => saveRow(p)}
+                    className="mt-3 w-full rounded-xl bg-brand-500 py-2 text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    {savingId === p.id ? 'Saving…' : 'Save stock'}
+                  </button>
+                </article>
+              )
+            })}
           </div>
-        </div>
+
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        </>
       )}
     </div>
   )

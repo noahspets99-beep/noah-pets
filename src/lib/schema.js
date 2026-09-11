@@ -5,7 +5,7 @@ export function organizationSchema() {
     name: "Noah's Pets",
     url: 'https://noahspets.com',
     logo: 'https://noahspets.com/favicon.svg',
-    email: 'hello@noahspets.com',
+    email: 'noahspets99@gmail.com',
     telephone: '+91-98765-43210',
     address: {
       '@type': 'PostalAddress',
@@ -125,7 +125,7 @@ export function localBusinessSchema() {
     name: "Noah's Pets",
     image: 'https://noahspets.com/favicon.svg',
     telephone: '+91-98765-43210',
-    email: 'hello@noahspets.com',
+    email: 'noahspets99@gmail.com',
     url: 'https://noahspets.com',
     address: {
       '@type': 'PostalAddress',

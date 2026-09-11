@@ -8,13 +8,14 @@ import {
   Search,
   User,
 } from 'lucide-react'
-import { useAdminStore } from '../../context/AdminStore'
-import { getAdminSession, logoutAdmin } from '../../services/adminAuth'
+import { useAdminStore } from '../../context/useAdminStore'
+import { useAuth } from '../../context/useAuth'
+import { logoutAdmin } from '../../services/adminAuth'
 import Modal from './Modal'
 
 export default function AdminTopbar({ title, onMenuClick }) {
   const navigate = useNavigate()
-  const session = getAdminSession()
+  const { user } = useAuth()
   const {
     notifications,
     markNotificationRead,
@@ -44,10 +45,10 @@ export default function AdminTopbar({ title, onMenuClick }) {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const confirmLogout = () => {
-    logoutAdmin()
+  const confirmLogout = async () => {
+    await logoutAdmin()
     pushToast('Logged out successfully', 'info')
-    navigate('/admin-login')
+    navigate('/admin-login', { replace: true })
   }
 
   return (
@@ -142,10 +143,10 @@ export default function AdminTopbar({ title, onMenuClick }) {
               </span>
               <span className="hidden text-left sm:block">
                 <span className="block text-sm font-bold leading-tight text-ink">
-                  {session?.name || 'Admin'}
+                  Admin
                 </span>
-                <span className="block text-[11px] text-muted">
-                  {session?.title || 'Store Administrator'}
+                <span className="block max-w-[10rem] truncate text-[11px] text-muted">
+                  {user?.email || 'Store Administrator'}
                 </span>
               </span>
               <ChevronDown className="hidden h-4 w-4 text-muted sm:block" />
@@ -175,7 +176,7 @@ export default function AdminTopbar({ title, onMenuClick }) {
         title="Confirm logout"
         size="sm"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => setLogoutOpen(false)}

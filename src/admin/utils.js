@@ -8,7 +8,14 @@ export function formatINR(amount) {
 
 export function formatDate(value) {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-IN', {
+  const date =
+    typeof value?.toDate === 'function'
+      ? value.toDate()
+      : typeof value?.seconds === 'number'
+        ? new Date(value.seconds * 1000)
+        : new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -17,7 +24,14 @@ export function formatDate(value) {
 
 export function formatDateTime(value) {
   if (!value) return '—'
-  return new Date(value).toLocaleString('en-IN', {
+  const date =
+    typeof value?.toDate === 'function'
+      ? value.toDate()
+      : typeof value?.seconds === 'number'
+        ? new Date(value.seconds * 1000)
+        : new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

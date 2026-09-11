@@ -10,13 +10,12 @@ import {
   ZoomIn,
 } from 'lucide-react'
 import {
-  catalogProducts,
   formatPrice,
-  getProductBySlug,
   toStorefrontProduct,
 } from '../data/catalog'
 import { applyInventoryToProduct } from '../services/inventoryService'
 import { absoluteUrl } from '../lib/slug'
+import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
@@ -60,9 +59,10 @@ export default function ProductDetailPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const { addToCart, toggleWishlist, isWishlisted } = useShop()
+  const { products, getProductBySlug } = useCatalog()
   const product = useMemo(
     () => applyInventoryToProduct(getProductBySlug(slug)),
-    [slug],
+    [slug, getProductBySlug],
   )
 
   const [activeImage, setActiveImage] = useState(0)
@@ -94,14 +94,12 @@ export default function ProductDetailPage() {
   const storefront = toStorefrontProduct(product)
 
   const related = (product.relatedIds || [])
-    .map((id) => catalogProducts.find((p) => p.id === id))
+    .map((id) => products.find((p) => p.id === id))
     .filter(Boolean)
-    .map(toStorefrontProduct)
 
   const fbt = (product.frequentlyBoughtWith || [])
-    .map((id) => catalogProducts.find((p) => p.id === id))
+    .map((id) => products.find((p) => p.id === id))
     .filter(Boolean)
-    .map(toStorefrontProduct)
 
   const crumbs = [
     { name: 'Home', to: '/', url: absoluteUrl('/') },
