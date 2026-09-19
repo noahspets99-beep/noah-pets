@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  MoreVertical,
   Pencil,
   Plus,
   Tag,
@@ -10,6 +9,7 @@ import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
 import EmptyState from '../../admin/components/EmptyState'
 import Modal from '../../admin/components/Modal'
+import ActionMenu from '../../admin/components/ActionMenu'
 import { formatDate, slugify } from '../../admin/utils'
 import { useAdminStore } from '../../context/AdminStore'
 import { PET_TYPES } from '../../admin/productConstants'
@@ -181,37 +181,15 @@ function CategoryForm({ form, setForm, categories, excludeId, slugManual, setSlu
 }
 
 function RowActions({ category, onEdit, onDelete }) {
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    if (!open) return undefined
-    const close = () => setOpen(false)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [open])
-
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          setOpen((v) => !v)
-        }}
-        className="rounded-xl border border-line p-2 text-muted transition hover:bg-surface hover:text-ink"
-        aria-label="Actions"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 z-20 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lift"
-          onClick={(e) => e.stopPropagation()}
-        >
+    <ActionMenu>
+      {(close) => (
+        <>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               onEdit(category)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium hover:bg-surface"
@@ -221,8 +199,9 @@ function RowActions({ category, onEdit, onDelete }) {
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               onDelete(category)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-danger hover:bg-red-50"
@@ -230,9 +209,9 @@ function RowActions({ category, onEdit, onDelete }) {
             <Trash2 className="h-4 w-4" />
             Delete
           </button>
-        </div>
+        </>
       )}
-    </div>
+    </ActionMenu>
   )
 }
 

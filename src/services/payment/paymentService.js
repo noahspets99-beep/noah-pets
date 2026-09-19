@@ -24,7 +24,7 @@ export async function startRazorpayCheckout(payload) {
   try {
     return await postJson(url, payload, { timeoutMs: 20000 })
   } catch (err) {
-    if (err?.status === 404) {
+    if (err?.status === 404 || err?.status === 405) {
       const pending = await createPendingOrder(payload)
       const paymentOrder = await createPaymentOrder({
         orderId: pending.orderId,

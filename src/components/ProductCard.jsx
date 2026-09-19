@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Heart, Minus, Plus, ShoppingBag, Star } from 'lucide-react'
 import { formatPrice } from '../data/products'
 import { useShop } from '../context/useShop'
+import { isProductInStock } from '../services/catalogMapper'
 
 const badgeStyles = {
   Bestseller: 'bg-accent text-white',
@@ -22,6 +23,7 @@ export default function ProductCard({ product, compact = false }) {
   const quantityInCart = getCartQuantity(product.id)
   const wishlisted = isWishlisted(product.id)
   const productPath = `/product/${product.slug || product.id}`
+  const inStock = isProductInStock(product)
 
   const handleWishlist = (e) => {
     e.preventDefault()
@@ -88,7 +90,7 @@ export default function ProductCard({ product, compact = false }) {
           />
         </button>
 
-        {!product.inStock && (
+        {!inStock && (
           <div className="absolute inset-0 flex items-center justify-center bg-ink/40">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink">
               Out of stock
@@ -168,7 +170,7 @@ export default function ProductCard({ product, compact = false }) {
               <button
                 type="button"
                 onClick={handleIncrease}
-                disabled={!product.inStock}
+                disabled={!inStock}
                 aria-label={`Increase ${product.name} quantity`}
                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white transition hover:bg-brand-600 active:scale-95 disabled:opacity-50"
               >
@@ -179,7 +181,7 @@ export default function ProductCard({ product, compact = false }) {
             <button
               type="button"
               onClick={handleAdd}
-              disabled={!product.inStock}
+              disabled={!inStock}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingBag className="h-4 w-4" aria-hidden="true" />

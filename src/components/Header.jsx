@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Heart,
   Menu,
-  PawPrint,
   Search,
   ShoppingBag,
   User,
@@ -11,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
+import BrandMark from './BrandMark'
 import MobileMenu from './MobileMenu'
 
 const navLinks = [
@@ -96,9 +96,7 @@ export default function Header() {
           </button>
 
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 text-white shadow-soft sm:h-10 sm:w-10">
-              <PawPrint className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <BrandMark className="h-9 w-9 sm:h-10 sm:w-10" />
             <span className="leading-tight">
               <span className="block text-base font-extrabold tracking-tight text-ink sm:text-lg">
                 Noah&apos;s Pets

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Copy,
   Eye,
-  MoreVertical,
   Package,
   Pencil,
   Plus,
@@ -15,6 +14,7 @@ import StatusBadge from '../../admin/components/StatusBadge'
 import Pagination from '../../admin/components/Pagination'
 import EmptyState from '../../admin/components/EmptyState'
 import Modal from '../../admin/components/Modal'
+import ActionMenu from '../../admin/components/ActionMenu'
 import { formatDate, formatINR, paginate } from '../../admin/utils'
 import { useAdminStore } from '../../context/AdminStore'
 import { PET_TYPES } from '../../admin/productConstants'
@@ -38,35 +38,17 @@ function stockLevel(product) {
 }
 
 function RowActions({ product, onView, onDuplicate, onDeactivate }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    if (!open) return undefined
-    const close = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [open])
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-xl border border-line p-2 text-muted transition hover:bg-surface hover:text-ink"
-        aria-label="Actions"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lift">
+    <ActionMenu>
+      {(close) => (
+        <>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               onView(product)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-surface"
@@ -76,8 +58,9 @@ function RowActions({ product, onView, onDuplicate, onDeactivate }) {
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               navigate(`/admin/products/${product.id}/edit`)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-surface"
@@ -87,8 +70,9 @@ function RowActions({ product, onView, onDuplicate, onDeactivate }) {
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               onDuplicate(product.id)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-surface"
@@ -98,8 +82,9 @@ function RowActions({ product, onView, onDuplicate, onDeactivate }) {
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
-              setOpen(false)
+              close()
               onDeactivate(product)
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-danger hover:bg-red-50"
@@ -107,9 +92,9 @@ function RowActions({ product, onView, onDuplicate, onDeactivate }) {
             <Trash2 className="h-4 w-4" />
             Deactivate
           </button>
-        </div>
+        </>
       )}
-    </div>
+    </ActionMenu>
   )
 }
 

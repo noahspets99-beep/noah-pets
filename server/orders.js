@@ -543,6 +543,10 @@ export async function markOrderPaid({
       updatedAt: now,
     }
 
+    if (!order.inventoryAdjusted) {
+      await applyInventoryDeduction(tx, db, order.items)
+    }
+
     tx.set(ref, patch, { merge: true })
     tx.set(payRef, {
       internalOrderId: orderId,
@@ -569,6 +573,104 @@ export async function markOrderPaid({
 
 function rupeesToPaiseSafe(rupees) {
   return Math.round(Number(rupees) * 100)
+}
+
+function stockStatusFromCount(stock, currentStatus) {
+  let status = currentStatus
+  if (stock <= 0 && status === 'Active') status = 'Out of Stock'
+  if (stock > 0 && status === 'Out of Stock') status = 'Active'
+  return status
+}
+
+/**
+ * Atomic inventory decrement inside an existing Firestore transaction.
+ * All product reads happen before writes. Never stores negative stock.
+ * Uses existing `inventoryAdjusted` on the order to stay idempotent.
+ */
+async function applyInventoryDeduction(tx, db, items) {
+  if (!Array.isArray(items) || items.length === 0) return
+
+  const grouped = new Map()
+  for (const item of items) {
+    const id = String(item.id || item.productId || '')
+    if (!id) continue
+    const qty = Number.parseInt(String(item.quantity), 10)
+    if (!Number.isInteger(qty) || qty < 1) {
+      throw publicError(400, 'invalid_item', 'Invalid cart item.')
+    }
+    if (!grouped.has(id)) grouped.set(id, [])
+    grouped.get(id).push({
+      qty,
+      variantId: item.variantId || null,
+      name: item.name,
+    })
+  }
+
+  const loaded = []
+  for (const [id] of grouped) {
+    const ref = db.collection('products').doc(id)
+    const snap = await tx.get(ref)
+    loaded.push({ id, ref, snap })
+  }
+
+  for (const { id, ref, snap } of loaded) {
+    if (!snap.exists) {
+      throw publicError(
+        400,
+        'product_not_found',
+        'A product in this order is no longer available.',
+      )
+    }
+    const data = snap.data() || {}
+    let stock = Math.max(0, Number(data.stock) || 0)
+    let variants = Array.isArray(data.variants)
+      ? data.variants.map((v) => ({ ...v }))
+      : []
+    const lines = grouped.get(id)
+
+    for (const { qty, variantId, name } of lines) {
+      const label = name || data.name || id
+      if (variantId && variants.length) {
+        const idx = variants.findIndex((v) => v.id === variantId)
+        if (idx < 0) {
+          throw publicError(400, 'invalid_variant', 'Product variant not found.')
+        }
+        const vStock = Math.max(0, Number(variants[idx].stock) || 0)
+        if (vStock < qty) {
+          throw publicError(
+            400,
+            'insufficient_stock',
+            `Insufficient stock for ${label}.`,
+          )
+        }
+        variants[idx] = { ...variants[idx], stock: vStock - qty }
+      } else if (stock < qty) {
+        throw publicError(
+          400,
+          'insufficient_stock',
+          `Insufficient stock for ${label}.`,
+        )
+      } else {
+        stock -= qty
+      }
+    }
+
+    if (variants.length) {
+      stock = variants.reduce(
+        (sum, v) => sum + Math.max(0, Number(v.stock) || 0),
+        0,
+      )
+    }
+    stock = Math.max(0, stock)
+
+    const patch = {
+      stock,
+      status: stockStatusFromCount(stock, data.status),
+      updatedAt: new Date().toISOString(),
+    }
+    if (variants.length) patch.variants = variants
+    tx.set(ref, patch, { merge: true })
+  }
 }
 
 export { FieldValue }

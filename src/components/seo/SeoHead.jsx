@@ -20,7 +20,7 @@ export default function SeoHead({
       : `${title} | ${STORE.name}`
     : DEFAULT_SEO.defaultTitle
   const url = absoluteUrl(canonical || '/')
-  const image = ogImage || absoluteUrl('/favicon.svg')
+  const image = ogImage || absoluteUrl('/image.jpeg')
 
   return (
     <Helmet>

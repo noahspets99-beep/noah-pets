@@ -18,9 +18,43 @@ export function normalizePetType(petType) {
   return map[petType] || petType || 'Dogs'
 }
 
+export function variantStock(variant) {
+  if (!variant) return 0
+  const n = Number(variant.stock)
+  return Number.isFinite(n) ? Math.max(0, n) : 0
+}
+
+/** Authoritative sellable units from Firestore `stock` (and variant.stock when present). */
+export function productStock(product, variant = null) {
+  if (!product) return 0
+  if (variant) return variantStock(variant)
+  const variants = Array.isArray(product.variants)
+    ? product.variants.filter(Boolean)
+    : []
+  if (variants.some((v) => v.stock != null && v.stock !== '')) {
+    return variants.reduce((sum, v) => sum + variantStock(v), 0)
+  }
+  const n = Number(product.stock)
+  return Number.isFinite(n) ? Math.max(0, n) : 0
+}
+
+export function isProductInStock(product, variant = null) {
+  if (!product) return false
+  if (product.active === false || product.status === 'Draft') return false
+  return productStock(product, variant) > 0
+}
+
+export function firstAvailableVariant(product) {
+  const variants = Array.isArray(product?.variants)
+    ? product.variants.filter(Boolean)
+    : []
+  if (!variants.length) return null
+  return variants.find((v) => variantStock(v) > 0) || variants[0]
+}
+
 export function adminProductToStorefront(p) {
   const images = (p.images || []).filter(Boolean)
-  const stock = Number(p.stock) || 0
+  const stock = productStock(p)
   const active = p.active !== false && p.status !== 'Draft'
   const petType = normalizePetType(p.petType)
   const categorySlug =
@@ -43,7 +77,7 @@ export function adminProductToStorefront(p) {
     price: Number(p.price) || 0,
     originalPrice: Number(p.mrp) || Number(p.price) || 0,
     discount: Number(p.discount) || 0,
-    inStock: active && stock > 0 && p.status !== 'Out of Stock',
+    inStock: active && stock > 0,
     stock,
     badge: p.badge || (p.bestseller ? 'Bestseller' : p.newArrival ? 'New' : ''),
     image: images[0] || p.image || '',

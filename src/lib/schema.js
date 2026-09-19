@@ -1,10 +1,12 @@
+import { isProductInStock, productStock } from '../services/catalogMapper'
+
 export function organizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: "Noah's Pets",
     url: 'https://noahspets.com',
-    logo: 'https://noahspets.com/favicon.svg',
+    logo: 'https://noahspets.com/image.jpeg',
     email: 'noahspets99@gmail.com',
     telephone: '+91-98765-43210',
     address: {
@@ -59,7 +61,9 @@ export function breadcrumbSchema(items) {
 export function productSchema(product, selectedVariant) {
   const price = selectedVariant?.price ?? product.price
   const availability =
-    (selectedVariant ? selectedVariant.stock > 0 : product.inStock)
+    (selectedVariant
+      ? productStock(product, selectedVariant) > 0
+      : isProductInStock(product))
       ? 'https://schema.org/InStock'
       : 'https://schema.org/OutOfStock'
 
@@ -123,7 +127,7 @@ export function localBusinessSchema() {
     '@context': 'https://schema.org',
     '@type': 'PetStore',
     name: "Noah's Pets",
-    image: 'https://noahspets.com/favicon.svg',
+    image: 'https://noahspets.com/image.jpeg',
     telephone: '+91-98765-43210',
     email: 'noahspets99@gmail.com',
     url: 'https://noahspets.com',

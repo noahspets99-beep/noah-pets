@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
 import { shippingSettings, taxSettings } from '../data/shippingTax'
 import { decreaseStockForCartItems } from '../services/inventoryService'
+import { invalidateCatalogCache } from './CatalogProvider'
+import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
 import { useCatalog } from './CatalogProvider'
 import { useAuth } from './useAuth'
 import {
@@ -120,9 +122,10 @@ export function ShopProvider({ children }) {
   const addToCart = useCallback(
     (product, options = {}) => {
       const quantity = options.quantity || 1
-      const variant = options.variant || null
-      const stock = variant?.stock ?? product.stock ?? (product.inStock ? 99 : 0)
-      if (stock < 1 || product.inStock === false) {
+      const variant =
+        options.variant || firstAvailableVariant(product) || null
+      const stock = productStock(product, variant)
+      if (stock < 1 || !isProductInStock(product, variant)) {
         showToast('This item is out of stock', 'error')
         return false
       }
@@ -331,7 +334,11 @@ export function ShopProvider({ children }) {
 
   const placeOrder = useCallback(
     (orderPayload) => {
-      decreaseStockForCartItems(cart)
+      if (!isFirebaseConfigured) {
+        decreaseStockForCartItems(cart)
+      } else {
+        invalidateCatalogCache()
+      }
       const order = {
         ...orderPayload,
         id: `ORD-${Date.now().toString().slice(-6)}`,
@@ -388,8 +395,12 @@ export function ShopProvider({ children }) {
       if (!serverOrder?.id) {
         throw new Error('Invalid server order')
       }
-      if (adjustInventory && Array.isArray(serverOrder.items)) {
-        decreaseStockForCartItems(serverOrder.items)
+      if (adjustInventory) {
+        if (isFirebaseConfigured) {
+          invalidateCatalogCache()
+        } else if (Array.isArray(serverOrder.items)) {
+          decreaseStockForCartItems(serverOrder.items)
+        }
       }
       const order = {
         ...serverOrder,

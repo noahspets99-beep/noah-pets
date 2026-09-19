@@ -1,6 +1,7 @@
-import { Heart, PawPrint, ShoppingBag, User, X } from 'lucide-react'
+import { Heart, ShoppingBag, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useShop } from '../context/useShop'
+import BrandMark from './BrandMark'
 
 export default function MobileMenu({ open, onClose, links }) {
   const { cartCount, wishlistCount, setCartOpen } = useShop()
@@ -18,9 +19,7 @@ export default function MobileMenu({ open, onClose, links }) {
       <div className="absolute inset-y-0 left-0 flex w-[min(100%,20rem)] flex-col bg-white shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between border-b border-line px-4 py-4">
           <Link to="/" onClick={onClose} className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 text-white">
-              <PawPrint className="h-4 w-4" />
-            </span>
+            <BrandMark className="h-9 w-9" />
             <span className="font-extrabold text-ink">Noah&apos;s Pets</span>
           </Link>
           <button

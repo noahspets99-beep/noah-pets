@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Mail, MessageCircle, PawPrint, Phone } from 'lucide-react'
+import { Mail, MessageCircle, Phone } from 'lucide-react'
 import { STORE } from '../config/store'
+import BrandMark from './BrandMark'
 
 const columns = [
   {
@@ -60,9 +61,7 @@ export default function Footer() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-6">
           <div className="sm:col-span-2 lg:col-span-2">
             <Link to="/" className="inline-flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500">
-                <PawPrint className="h-5 w-5" aria-hidden="true" />
-              </span>
+              <BrandMark className="h-10 w-10" />
               <span>
                 <span className="block text-lg font-extrabold">
                   Noah&apos;s Pets

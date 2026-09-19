@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   listCollection,
   isFirebaseConfigured,
+  fsQuery,
 } from '../services/firestore/repository'
 import {
   FALLBACK_CATALOG_PRODUCTS,
@@ -52,6 +53,16 @@ export function invalidateCatalogCache() {
   window.dispatchEvent(new Event('noah:catalog-invalidate'))
 }
 
+async function safeList(name, constraints = []) {
+  try {
+    const res = await listCollection(name, constraints)
+    return { name, ok: true, res }
+  } catch (err) {
+    console.error(`Catalog load failed (${name})`, err?.code || err?.message || err)
+    return { name, ok: false, err }
+  }
+}
+
 export function CatalogProvider({ children }) {
   const cached = readCache()
   const [products, setProducts] = useState(cached?.products || [])
@@ -78,31 +89,36 @@ export function CatalogProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      const [prodRes, catRes, couponRes, bannerRes] = await Promise.all([
-        listCollection('products'),
-        listCollection('categories'),
-        listCollection('coupons'),
-        listCollection('banners'),
+      // Load independently so one collection (e.g. banners rules) cannot wipe the catalog.
+      // Banners rules require active==true for public list — must filter in the query.
+      const [prodOut, catOut, couponOut, bannerOut] = await Promise.all([
+        safeList('products'),
+        safeList('categories'),
+        safeList('coupons'),
+        safeList('banners', [fsQuery.where('active', '==', true)]),
       ])
 
-      // Firebase configured: never silently swap in demo catalog
       let nextProducts = []
-      if (prodRes.mode === 'firestore' && Array.isArray(prodRes.data)) {
-        nextProducts = prodRes.data
+      if (prodOut.ok && prodOut.res.mode === 'firestore' && Array.isArray(prodOut.res.data)) {
+        nextProducts = prodOut.res.data
           .map(adminProductToStorefront)
           .filter(isStorefrontVisible)
       }
 
       let nextCategories = []
-      if (catRes.mode === 'firestore' && Array.isArray(catRes.data)) {
-        nextCategories = catRes.data.filter(
+      if (catOut.ok && catOut.res.mode === 'firestore' && Array.isArray(catOut.res.data)) {
+        nextCategories = catOut.res.data.filter(
           (c) => c.active !== false && c.status !== 'Inactive',
         )
       }
 
       let nextCoupons = []
-      if (couponRes.mode === 'firestore' && Array.isArray(couponRes.data)) {
-        nextCoupons = couponRes.data.filter(
+      if (
+        couponOut.ok &&
+        couponOut.res.mode === 'firestore' &&
+        Array.isArray(couponOut.res.data)
+      ) {
+        nextCoupons = couponOut.res.data.filter(
           (c) =>
             c.status === 'Active' ||
             (c.active !== false && c.status !== 'Expired'),
@@ -110,27 +126,43 @@ export function CatalogProvider({ children }) {
       }
 
       let nextBanners = []
-      if (bannerRes.mode === 'firestore' && Array.isArray(bannerRes.data)) {
-        nextBanners = bannerRes.data.filter((b) => b.active !== false)
+      if (
+        bannerOut.ok &&
+        bannerOut.res.mode === 'firestore' &&
+        Array.isArray(bannerOut.res.data)
+      ) {
+        nextBanners = bannerOut.res.data.filter((b) => b.active !== false)
       }
+
+      const failed = [prodOut, catOut, couponOut, bannerOut].filter((r) => !r.ok)
+      const criticalFailed = !prodOut.ok
 
       setProducts(nextProducts)
       setCategories(nextCategories)
       setCoupons(nextCoupons)
       setBanners(nextBanners)
-      setSource('firestore')
-      writeCache({
-        products: nextProducts,
-        categories: nextCategories,
-        coupons: nextCoupons,
-        banners: nextBanners,
-        source: 'firestore',
-      })
+      setSource(criticalFailed ? 'error' : 'firestore')
+      setError(
+        criticalFailed
+          ? prodOut.err?.message || 'Failed to load products from Firebase'
+          : failed.length
+            ? `Partial catalog load (${failed.map((f) => f.name).join(', ')})`
+            : null,
+      )
+
+      if (!criticalFailed) {
+        writeCache({
+          products: nextProducts,
+          categories: nextCategories,
+          coupons: nextCoupons,
+          banners: nextBanners,
+          source: 'firestore',
+        })
+      }
     } catch (err) {
-      console.error('Catalog load failed', err?.message || err)
+      console.error('Catalog load failed', err?.code || err?.message || err)
       setError(err?.message || 'Failed to load catalog from Firebase')
       setSource('error')
-      // Do not inject demo products on failure
     } finally {
       setLoading(false)
     }

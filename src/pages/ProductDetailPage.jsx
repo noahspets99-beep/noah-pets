@@ -13,10 +13,14 @@ import {
   formatPrice,
   toStorefrontProduct,
 } from '../data/catalog'
-import { applyInventoryToProduct } from '../services/inventoryService'
 import { absoluteUrl } from '../lib/slug'
 import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
+import {
+  firstAvailableVariant,
+  isProductInStock,
+  productStock,
+} from '../services/catalogMapper'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -61,7 +65,7 @@ export default function ProductDetailPage() {
   const { addToCart, toggleWishlist, isWishlisted } = useShop()
   const { products, getProductBySlug } = useCatalog()
   const product = useMemo(
-    () => applyInventoryToProduct(getProductBySlug(slug)),
+    () => getProductBySlug(slug),
     [slug, getProductBySlug],
   )
 
@@ -73,8 +77,7 @@ export default function ProductDetailPage() {
 
   const selectedVariant =
     product?.variants?.find((v) => v.id === variantId) ||
-    product?.variants?.[0] ||
-    null
+    firstAvailableVariant(product)
 
   if (!product) return <NotFoundPage />
 
@@ -84,8 +87,8 @@ export default function ProductDetailPage() {
       : [product.image].filter(Boolean)
   const price = selectedVariant?.price ?? product.price
   const mrp = selectedVariant?.mrp ?? product.originalPrice
-  const stock = selectedVariant?.stock ?? product.stock
-  const inStock = selectedVariant ? selectedVariant.stock > 0 : product.inStock
+  const stock = productStock(product, selectedVariant)
+  const inStock = isProductInStock(product, selectedVariant)
   const discount =
     mrp && price
       ? Math.round(((mrp - price) / mrp) * 100)
@@ -252,7 +255,7 @@ export default function ProductDetailPage() {
                   <button
                     key={v.id}
                     type="button"
-                    disabled={v.stock < 1}
+                    disabled={productStock(product, v) < 1}
                     onClick={() => setVariantId(v.id)}
                     className={`rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
                       selectedVariant?.id === v.id

@@ -137,6 +137,42 @@ export function createApp() {
   const app = express()
   app.set('trust proxy', 1)
 
+  // Vercel routes /api/(.*) → /api. Normalize so Express /api/* handlers always match.
+  app.use((req, _res, next) => {
+    const headerPath = [
+      req.headers['x-invoke-path'],
+      req.headers['x-matched-path'],
+      req.headers['x-forwarded-uri'],
+    ]
+      .map((v) => (v == null ? '' : String(v).split('?')[0]))
+      .find((p) => p.startsWith('/api/'))
+
+    const current = String(req.url || '')
+    const pathOnly = current.split('?')[0] || ''
+    const qs = current.includes('?') ? current.slice(current.indexOf('?')) : ''
+
+    if (headerPath && !pathOnly.startsWith('/api/')) {
+      req.url = `${headerPath}${qs}`
+      return next()
+    }
+
+    if (pathOnly.startsWith('/api/') || pathOnly === '/api') {
+      return next()
+    }
+
+    const apiRelative =
+      pathOnly === '/health' ||
+      pathOnly.startsWith('/orders') ||
+      pathOnly.startsWith('/checkout') ||
+      pathOnly.startsWith('/payments') ||
+      pathOnly.startsWith('/admin')
+
+    if (apiRelative) {
+      req.url = `/api${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${qs}`
+    }
+    return next()
+  })
+
   const allowlist = corsOriginAllowlist()
   app.use(
     cors({
