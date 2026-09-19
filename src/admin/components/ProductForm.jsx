@@ -69,7 +69,7 @@ function buildFormState(initialValues) {
 function CollapsibleSection({ title, description, children, defaultOpen = false }) {
   return (
     <details
-      open={defaultOpen}
+      defaultOpen={defaultOpen}
       className="group rounded-2xl border border-line bg-white shadow-card"
     >
       <summary className="cursor-pointer list-none px-4 py-4 sm:px-6">

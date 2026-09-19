@@ -39,21 +39,32 @@ export default function Modal({
   const titleId = useId()
   const descriptionId = useId()
   const panelRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return undefined
     lockBodyScroll()
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.()
+      if (e.key === 'Escape') onCloseRef.current?.()
     }
     document.addEventListener('keydown', onKey)
-    const frame = requestAnimationFrame(() => panelRef.current?.focus())
+    // Focus the dialog once when it opens. Do not depend on `onClose` —
+    // inline handlers are new every parent render and would steal focus
+    // from inputs after each keystroke.
+    const frame = requestAnimationFrame(() => {
+      const panel = panelRef.current
+      if (!panel) return
+      const active = document.activeElement
+      if (active && panel.contains(active) && active !== panel) return
+      panel.focus()
+    })
     return () => {
       cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onKey)
       unlockBodyScroll()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open || typeof document === 'undefined') return null
 

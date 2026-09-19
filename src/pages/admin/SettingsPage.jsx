@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Save, Settings, Shield } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import { useAdminStore } from '../../context/AdminStore'
@@ -61,12 +61,10 @@ export default function SettingsPage() {
   const { settings, saveSettings } = useAdminStore()
   const [form, setForm] = useState(settings)
   const [saving, setSaving] = useState(false)
-  const [settingsVersion, setSettingsVersion] = useState(settings)
 
-  if (settingsVersion !== settings) {
-    setSettingsVersion(settings)
+  useEffect(() => {
     setForm(settings)
-  }
+  }, [settings])
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
 
