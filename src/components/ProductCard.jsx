@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, Minus, Plus, ShoppingBag, Star } from 'lucide-react'
 import { formatPrice } from '../data/products'
@@ -12,6 +13,8 @@ const badgeStyles = {
   'Limited Stock': 'bg-ink text-white',
 }
 
+const ROTATE_MS = 3200
+
 export default function ProductCard({ product, compact = false }) {
   const {
     addToCart,
@@ -24,6 +27,41 @@ export default function ProductCard({ product, compact = false }) {
   const wishlisted = isWishlisted(product.id)
   const productPath = `/product/${product.slug || product.id}`
   const inStock = isProductInStock(product)
+
+  const images = useMemo(() => {
+    const list = Array.isArray(product.images)
+      ? product.images.map((u) => String(u || '').trim()).filter(Boolean)
+      : []
+    if (list.length > 0) return list
+    const single = String(product.image || '').trim()
+    return single ? [single] : []
+  }, [product.images, product.image])
+
+  const [imageIndex, setImageIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    setImageIndex(0)
+  }, [product.id])
+
+  useEffect(() => {
+    if (images.length <= 1 || paused) return undefined
+    const timer = window.setInterval(() => {
+      setImageIndex((i) => (i + 1) % images.length)
+    }, ROTATE_MS)
+    return () => window.clearInterval(timer)
+  }, [images.length, paused])
+
+  // Preload the next image only — avoids loading every gallery image up front
+  useEffect(() => {
+    if (images.length <= 1) return
+    const nextSrc = images[(imageIndex + 1) % images.length]
+    if (!nextSrc) return
+    const preload = new Image()
+    preload.src = nextSrc
+  }, [imageIndex, images])
+
+  const activeSrc = images[imageIndex] || product.image || ''
 
   const handleWishlist = (e) => {
     e.preventDefault()
@@ -51,17 +89,28 @@ export default function ProductCard({ product, compact = false }) {
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-lift">
-      <div className="relative aspect-[4/5] overflow-hidden bg-surface sm:aspect-square">
+      <div
+        className="relative aspect-[4/5] overflow-hidden bg-surface sm:aspect-square"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setPaused(false)}
+      >
         <Link to={productPath} className="block h-full w-full" aria-label={product.name}>
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-            decoding="async"
-            width={400}
-            height={400}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          />
+          {activeSrc ? (
+            <img
+              key={activeSrc}
+              src={activeSrc}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              width={400}
+              height={400}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105 animate-fade-in"
+            />
+          ) : (
+            <div className="h-full w-full bg-surface" />
+          )}
         </Link>
 
         {product.badge && (

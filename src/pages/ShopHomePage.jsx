@@ -30,7 +30,7 @@ export default function ShopHomePage() {
       />
       <HeroSection />
       <PetCategorySection />
-      <ShopCategorySection />
+      {/* <ShopCategorySection /> */}
       <FeaturedProducts />
       <PromoBanner />
       <BestSellers />

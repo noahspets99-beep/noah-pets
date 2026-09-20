@@ -32,6 +32,8 @@ const staticRoutes = [
   { loc: '/contact', priority: '0.7', changefreq: 'monthly' },
   { loc: '/shipping', priority: '0.5', changefreq: 'monthly' },
   { loc: '/returns', priority: '0.5', changefreq: 'monthly' },
+  { loc: '/terms', priority: '0.5', changefreq: 'monthly' },
+  { loc: '/privacy', priority: '0.5', changefreq: 'monthly' },
   { loc: '/faq', priority: '0.6', changefreq: 'monthly' },
   { loc: '/blog', priority: '0.7', changefreq: 'weekly' },
   { loc: '/search', priority: '0.4', changefreq: 'weekly' },

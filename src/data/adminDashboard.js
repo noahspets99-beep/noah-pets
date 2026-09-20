@@ -3,7 +3,8 @@ export const initialAdminSettings = {
   logo: '',
   email: 'noahspets99@gmail.com',
   phone: '+91 9710101045',
-  address: '42 Pet Care Avenue, T. Nagar, Chennai, Tamil Nadu 600017',
+  address:
+    '35/15, S Mada St, Sarojini Nagar, Kolathur, Chennai, Tamil Nadu 600099',
   currency: 'INR',
   deliveryFee: 49,
   freeDeliveryThreshold: 999,
@@ -11,7 +12,7 @@ export const initialAdminSettings = {
   taxPercent: 5,
   instagram: 'https://instagram.com/noahspets',
   facebook: 'https://facebook.com/noahspets',
-  whatsapp: '+91 9710101455',
+  whatsapp: '+91 9710101045',
   showOutOfStock: true,
   enableReviews: true,
   enableWishlist: true,

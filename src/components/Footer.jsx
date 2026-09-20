@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Mail, MessageCircle, Phone } from 'lucide-react'
-import { STORE } from '../config/store'
+import { STORE, formatStoreAddress } from '../config/store'
 import BrandMark from './BrandMark'
 
 const columns = [
@@ -19,8 +19,8 @@ const columns = [
     title: 'Help',
     links: [
       { label: 'Contact Us', to: '/contact' },
-      { label: 'Shipping', to: '/shipping' },
-      { label: 'Returns', to: '/returns' },
+      { label: 'Shipping Policy', to: '/shipping' },
+      { label: 'Refund & Cancellation', to: '/returns' },
       { label: 'FAQs', to: '/faq' },
       { label: 'Track Order', to: '/orders' },
     ],
@@ -29,9 +29,10 @@ const columns = [
     title: 'Company',
     links: [
       { label: 'About Us', to: '/about' },
+      { label: 'Terms & Conditions', to: '/terms' },
+      { label: 'Privacy Policy', to: '/privacy' },
       { label: 'Blog', to: '/blog' },
       { label: 'Account', to: '/account' },
-      { label: 'Wishlist', to: '/wishlist' },
     ],
   },
 ]
@@ -75,10 +76,14 @@ export default function Footer() {
               A modern pet marketplace based in Chennai, Tamil Nadu — premium
               food, toys and accessories delivered across Tamil Nadu.
             </p>
-            <p className="mt-3 text-sm text-white/55">
-              {STORE.address.line1}, {STORE.address.city},{' '}
-              {STORE.address.state} {STORE.address.pincode}
-            </p>
+            <a
+              href={STORE.mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 block text-sm text-white/55 transition hover:text-white"
+            >
+              {formatStoreAddress()}
+            </a>
             <div className="mt-5 flex gap-2">
               {socialLinks.map((social) => (
                 <a
@@ -161,7 +166,20 @@ export default function Footer() {
 
         <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Noah&apos;s Pets. All rights reserved.</p>
-          <p>Delivering across Tamil Nadu · Made for happy pets & happier homes.</p>
+          <p className="flex flex-wrap gap-x-3 gap-y-1">
+            <Link to="/terms" className="hover:text-white">
+              Terms
+            </Link>
+            <Link to="/privacy" className="hover:text-white">
+              Privacy
+            </Link>
+            <Link to="/returns" className="hover:text-white">
+              Refunds
+            </Link>
+            <Link to="/shipping" className="hover:text-white">
+              Shipping
+            </Link>
+          </p>
         </div>
       </div>
     </footer>

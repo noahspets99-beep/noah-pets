@@ -7,13 +7,18 @@ export const STORE = {
   phone: '+91 9710101045',
   whatsapp: '+91 9710101045',
   address: {
-    line1: '42 Pet Care Avenue, T. Nagar',
+    line1: '35/15, S Mada St, Sarojini Nagar, Kolathur',
     city: 'Chennai',
     district: 'Chennai',
     state: 'Tamil Nadu',
-    pincode: '600017',
+    pincode: '600099',
     country: 'India',
   },
+  /** Canonical full address — use this everywhere customer-facing copy needs it. */
+  fullAddress:
+    '35/15, S Mada St, Sarojini Nagar, Kolathur, Chennai, Tamil Nadu 600099',
+  mapsUrl:
+    'https://www.google.com/maps/search/Noah%E2%80%99s%20Pets/@13.124099731445312,80.21499633789062,17z?hl=en',
   currency: 'INR',
   currencySymbol: '₹',
   locale: 'en-IN',
@@ -28,6 +33,11 @@ export const STORE = {
     facebook: 'https://facebook.com/noahspets',
     youtube: 'https://youtube.com/@noahspets',
   },
+}
+
+/** Formatted store address string for UI and schema. */
+export function formatStoreAddress() {
+  return STORE.fullAddress
 }
 
 /** Priority Tamil Nadu cities for local SEO (useful content pages only). */

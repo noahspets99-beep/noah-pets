@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
+import { browserLocalPersistence, onAuthStateChanged, setPersistence } from 'firebase/auth'
 import { isAdminUser } from '../config/admin'
 import { auth, isFirebaseConfigured } from '../lib/firebase'
 import {
@@ -14,12 +14,16 @@ const firebaseReady = Boolean(isFirebaseConfigured && auth)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  // Stay in loading until Firebase restores (or confirms null) the session
   const [authReady, setAuthReady] = useState(!firebaseReady)
 
   useEffect(() => {
     if (!firebaseReady) {
       return undefined
     }
+
+    // Do not block auth restoration on setPersistence — attach the listener first.
+    setPersistence(auth, browserLocalPersistence).catch(() => {})
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)

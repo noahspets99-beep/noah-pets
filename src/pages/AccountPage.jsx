@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { isAdminUser } from '../config/admin'
 import {
   Heart,
   LogOut,
@@ -77,9 +78,16 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!authReady || !isAuthenticated || !nextPath) return
-    navigate(nextPath, { replace: true })
-  }, [authReady, isAuthenticated, nextPath, navigate])
+    if (!authReady || !isAuthenticated || !user) return
+    // Configured admin email always lands in Admin — never the customer account page
+    if (isAdminUser(user)) {
+      navigate('/admin/dashboard', { replace: true })
+      return
+    }
+    if (nextPath) {
+      navigate(nextPath, { replace: true })
+    }
+  }, [authReady, isAuthenticated, user, nextPath, navigate])
 
   const myOrders = isAuthenticated
     ? orders.filter(
@@ -96,9 +104,13 @@ export default function AccountPage() {
     setConfirmPassword('')
   }
 
-  const afterAuthSuccess = (toastMessage) => {
+  const afterAuthSuccess = (authUser, toastMessage) => {
     resetForm()
     showToast(toastMessage)
+    if (isAdminUser(authUser)) {
+      navigate('/admin/dashboard', { replace: true })
+      return
+    }
     if (nextPath) {
       navigate(nextPath, { replace: true })
     }
@@ -114,7 +126,7 @@ export default function AccountPage() {
       setError(result.error)
       return
     }
-    afterAuthSuccess('Signed in successfully')
+    afterAuthSuccess(result.user, 'Signed in successfully')
   }
 
   const handleSignUp = async (e) => {
@@ -143,7 +155,7 @@ export default function AccountPage() {
       setError(result.error)
       return
     }
-    afterAuthSuccess('Account created')
+    afterAuthSuccess(result.user, 'Account created')
   }
 
   const handleGoogle = async () => {
@@ -155,7 +167,7 @@ export default function AccountPage() {
       if (!result.cancelled) setError(result.error)
       return
     }
-    afterAuthSuccess('Signed in with Google')
+    afterAuthSuccess(result.user, 'Signed in with Google')
   }
 
   const handleSignOut = async () => {
@@ -170,6 +182,11 @@ export default function AccountPage() {
         <p className="text-sm text-muted">Loading account…</p>
       </div>
     )
+  }
+
+  // Configured admin must never stay on the customer account surface
+  if (isAuthenticated && isAdminUser(user)) {
+    return <Navigate to="/admin/dashboard" replace />
   }
 
   if (!isAuthenticated) {

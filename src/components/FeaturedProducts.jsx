@@ -1,15 +1,29 @@
 import { useMemo, useState } from 'react'
-import { filterTabs } from '../data/products'
+import { filterTabs as fallbackFilterTabs } from '../data/products'
 import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
+/**
+ * Featured Products filters use admin-managed categories when available.
+ * Admin categories are not promoted elsewhere on the storefront as nav/sections.
+ */
 export default function FeaturedProducts() {
   const { searchQuery } = useShop()
-  const { products, filterProducts, searchProducts } = useCatalog()
+  const { products, categories, filterProducts } = useCatalog()
   const [activeTab, setActiveTab] = useState('All')
   const [sortBy, setSortBy] = useState('popular')
+
+  const tabs = useMemo(() => {
+    const names = (categories || [])
+      .filter((c) => c.active !== false && c.status !== 'Inactive')
+      .map((c) => String(c.name || '').trim())
+      .filter(Boolean)
+    const unique = [...new Set(names)]
+    if (unique.length === 0) return fallbackFilterTabs
+    return ['All', ...unique]
+  }, [categories])
 
   const filtered = useMemo(() => {
     let list =
@@ -61,7 +75,7 @@ export default function FeaturedProducts() {
           role="tablist"
           aria-label="Product filters"
         >
-          {filterTabs.map((tab) => {
+          {tabs.map((tab) => {
             const active = activeTab === tab
             return (
               <button

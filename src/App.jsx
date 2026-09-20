@@ -23,6 +23,8 @@ import ReturnsPage from './pages/ReturnsPage'
 import SearchPage from './pages/SearchPage'
 import ShippingPage from './pages/ShippingPage'
 import ShopHomePage from './pages/ShopHomePage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 import WishlistPage from './pages/WishlistPage'
 
 // Admin is code-split so storefront visitors don't download the admin bundle.
@@ -91,6 +93,8 @@ function App() {
               <Route path="about" element={<AboutPage />} />
               <Route path="shipping" element={<ShippingPage />} />
               <Route path="returns" element={<ReturnsPage />} />
+              <Route path="terms" element={<TermsPage />} />
+              <Route path="privacy" element={<PrivacyPage />} />
               <Route path="faq" element={<FaqPage />} />
               <Route path="blog" element={<BlogListPage />} />
               <Route path="blog/:slug" element={<BlogPostPage />} />

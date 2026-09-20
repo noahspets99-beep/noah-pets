@@ -1,5 +1,6 @@
+import { Link } from 'react-router-dom'
 import { Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
-import { STORE, TN_SERVICE_AREAS } from '../config/store'
+import { STORE, TN_SERVICE_AREAS, formatStoreAddress } from '../config/store'
 import SeoHead from '../components/seo/SeoHead'
 import JsonLd from '../components/seo/JsonLd'
 import { localBusinessSchema } from '../lib/schema'
@@ -18,59 +19,83 @@ export default function ContactPage() {
         Contact Us
       </h1>
       <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-        We are based in Chennai and deliver pet food and supplies across Tamil
-        Nadu. Reach out for order help, stock questions or partnership enquiries.
+        Noah&apos;s Pets is based in Kolathur, Chennai and delivers pet food and
+        supplies across Tamil Nadu. Reach out for order help, stock questions or
+        partnership enquiries.
       </p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            icon: Mail,
-            label: 'Email',
-            value: STORE.email,
-            href: `mailto:${STORE.email}`,
-          },
-          {
-            icon: Phone,
-            label: 'Phone',
-            value: STORE.phone,
-            href: `tel:${STORE.phone.replace(/\s/g, '')}`,
-          },
-          {
-            icon: MessageCircle,
-            label: 'WhatsApp',
-            value: 'Chat with us',
-            href: `https://wa.me/${STORE.whatsapp.replace(/\D/g, '')}`,
-          },
-          {
-            icon: MapPin,
-            label: 'Store',
-            value: `${STORE.address.line1}, ${STORE.address.city}`,
-            href: null,
-          },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-line bg-white p-5 shadow-card"
-          >
-            <item.icon className="h-5 w-5 text-brand-600" />
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">
-              {item.label}
-            </p>
-            {item.href ? (
+      <div className="mt-8 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+        <h2 className="text-lg font-extrabold text-ink">Noah&apos;s Pets</h2>
+        <dl className="mt-4 space-y-4 text-sm">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Address
+            </dt>
+            <dd className="mt-1">
               <a
-                href={item.href}
-                className="mt-1 block text-sm font-semibold text-ink hover:text-brand-700"
-                target={item.href.startsWith('http') ? '_blank' : undefined}
-                rel={item.href.startsWith('http') ? 'noreferrer' : undefined}
+                href={STORE.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-start gap-2 font-semibold text-ink hover:text-brand-700"
               >
-                {item.value}
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                <span>{formatStoreAddress()}</span>
               </a>
-            ) : (
-              <p className="mt-1 text-sm font-semibold text-ink">{item.value}</p>
-            )}
+            </dd>
           </div>
-        ))}
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Email
+            </dt>
+            <dd className="mt-1">
+              <a
+                href={`mailto:${STORE.email}`}
+                className="inline-flex items-center gap-2 font-semibold text-ink hover:text-brand-700"
+              >
+                <Mail className="h-4 w-4 text-brand-600" />
+                {STORE.email}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Phone / WhatsApp
+            </dt>
+            <dd className="mt-1 flex flex-wrap gap-4">
+              <a
+                href={`tel:${STORE.phone.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-2 font-semibold text-ink hover:text-brand-700"
+              >
+                <Phone className="h-4 w-4 text-brand-600" />
+                {STORE.phone}
+              </a>
+              <a
+                href={`https://wa.me/${STORE.whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 font-semibold text-ink hover:text-brand-700"
+              >
+                <MessageCircle className="h-4 w-4 text-brand-600" />
+                WhatsApp
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Location
+            </dt>
+            <dd className="mt-1">
+              <a
+                href={STORE.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-brand-600 hover:text-brand-700"
+              >
+                Open in Google Maps
+              </a>
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <section className="mt-12">
@@ -91,6 +116,18 @@ export default function ContactPage() {
           ))}
         </div>
       </section>
+
+      <p className="mt-8 text-sm text-muted">
+        For shipping and refund policies, see{' '}
+        <Link to="/shipping" className="font-semibold text-brand-600">
+          Shipping Policy
+        </Link>{' '}
+        and{' '}
+        <Link to="/returns" className="font-semibold text-brand-600">
+          Refund &amp; Cancellation Policy
+        </Link>
+        .
+      </p>
     </div>
   )
 }

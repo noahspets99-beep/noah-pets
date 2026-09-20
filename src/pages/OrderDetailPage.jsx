@@ -6,12 +6,10 @@ import NotFoundPage from './NotFoundPage'
 
 export default function OrderDetailPage() {
   const { id } = useParams()
-  const { getOrderById, cancelOrder } = useShop()
+  const { getOrderById } = useShop()
   const order = getOrderById(id)
 
   if (!order) return <NotFoundPage />
-
-  const canCancel = ['Pending', 'Confirmed'].includes(order.status)
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -148,16 +146,21 @@ export default function OrderDetailPage() {
           >
             Print invoice
           </button>
-          {canCancel && (
-            <button
-              type="button"
-              onClick={() => cancelOrder(order.id)}
-              className="rounded-xl border border-danger/30 bg-red-50 px-4 py-2.5 text-sm font-semibold text-danger"
-            >
-              Cancel order
-            </button>
-          )}
+          <Link
+            to="/contact"
+            className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-surface"
+          >
+            Contact support
+          </Link>
         </div>
+        <p className="print:hidden mt-4 text-xs text-muted">
+          Once an order has been successfully placed, it cannot be cancelled by
+          the customer. See our{' '}
+          <Link to="/returns" className="font-semibold text-brand-600">
+            Refund &amp; Cancellation Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   )

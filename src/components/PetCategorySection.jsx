@@ -1,40 +1,20 @@
 import { Link } from 'react-router-dom'
 import { petCategories } from '../data/products'
-import { useCatalog } from '../context/CatalogProvider'
 import SectionHeader from './SectionHeader'
 
-function toPetTiles(categories) {
-  return (categories || [])
-    .filter((c) => !c.parentId && c.active !== false && c.status !== 'Inactive')
-    .slice(0, 12)
-    .map((c) => ({
-      id: c.slug || c.id,
-      name: c.name,
-      image: c.image || '',
-      emoji: c.emoji || '🐾',
-      description: c.description || 'Shop collection',
-    }))
-}
-
+/**
+ * Predefined shop-by-pet tiles only.
+ * Admin-managed Firestore categories are not listed here — they feed Featured Products filters.
+ */
 export default function PetCategorySection() {
-  const { categories, source } = useCatalog()
-  const fromFirebase = toPetTiles(categories)
-  // Prefer Firebase categories when the catalog is live; keep static tiles only offline
-  const tiles =
-    source === 'firestore' && fromFirebase.length > 0
-      ? fromFirebase
-      : source === 'fallback'
-        ? petCategories
-        : fromFirebase.length > 0
-          ? fromFirebase
-          : petCategories
+  const tiles = petCategories
 
   return (
     <section id="shop-by-pet" className="bg-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
           eyebrow="Discover"
-          title="Shop By Pet"
+          title="Shop By Categories"
           subtitle="Find curated collections tailored to every companion in your home."
         />
 

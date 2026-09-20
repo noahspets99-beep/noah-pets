@@ -18,15 +18,61 @@ import {
 
 const CatalogContext = createContext(null)
 
-const CACHE_KEY = 'noah_catalog_cache_v2'
-const CACHE_TTL_MS = 45_000
+const CACHE_KEY = 'noah_catalog_cache_v3'
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
+
+function toMillis(value) {
+  if (!value) return 0
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const t = Date.parse(value)
+    return Number.isFinite(t) ? t : 0
+  }
+  if (typeof value?.toMillis === 'function') {
+    try {
+      return value.toMillis()
+    } catch {
+      return 0
+    }
+  }
+  if (typeof value?.seconds === 'number') {
+    return value.seconds * 1000
+  }
+  return 0
+}
+
+/** Lightweight fingerprint from public catalog rows (uses existing updatedAt when present). */
+function buildCatalogVersion(products = [], categories = []) {
+  let maxProduct = 0
+  for (const p of products) {
+    maxProduct = Math.max(
+      maxProduct,
+      toMillis(p.updatedAt),
+      toMillis(p.createdAt),
+    )
+  }
+  let maxCategory = 0
+  for (const c of categories) {
+    maxCategory = Math.max(
+      maxCategory,
+      toMillis(c.updatedAt),
+      toMillis(c.createdAt),
+    )
+  }
+  return [
+    products.length,
+    categories.length,
+    maxProduct,
+    maxCategory,
+  ].join(':')
+}
 
 function readCache() {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY)
+    const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    if (!parsed?.at || Date.now() - parsed.at > CACHE_TTL_MS) return null
+    if (!parsed?.at || !Array.isArray(parsed.products)) return null
     return parsed
   } catch {
     return null
@@ -35,7 +81,7 @@ function readCache() {
 
 function writeCache(payload) {
   try {
-    sessionStorage.setItem(
+    localStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ ...payload, at: Date.now() }),
     )
@@ -44,9 +90,15 @@ function writeCache(payload) {
   }
 }
 
+function isCacheFresh(cache) {
+  if (!cache?.at) return false
+  return Date.now() - cache.at < CACHE_TTL_MS
+}
+
 export function invalidateCatalogCache() {
   try {
-    sessionStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem(CACHE_KEY)
+    sessionStorage.removeItem('noah_catalog_cache_v2')
   } catch {
     /* ignore */
   }
@@ -63,19 +115,79 @@ async function safeList(name, constraints = []) {
   }
 }
 
+/**
+ * Lightweight change check using existing updatedAt fields (newest doc only).
+ * Falls back to null when the query is unavailable so TTL still governs refresh.
+ */
+async function fetchRemoteCatalogVersion() {
+  try {
+    const [prodOut, catOut] = await Promise.all([
+      safeList('products', [
+        fsQuery.orderBy('updatedAt', 'desc'),
+        fsQuery.limit(1),
+      ]),
+      safeList('categories', [
+        fsQuery.orderBy('updatedAt', 'desc'),
+        fsQuery.limit(1),
+      ]),
+    ])
+
+    if (!prodOut.ok && !catOut.ok) return null
+
+    const prod = prodOut.ok && prodOut.res.mode === 'firestore'
+      ? prodOut.res.data?.[0]
+      : null
+    const cat = catOut.ok && catOut.res.mode === 'firestore'
+      ? catOut.res.data?.[0]
+      : null
+
+    // Count is unknown from limit(1); include max timestamps as change signal.
+    // Full load still reconciles exact counts into the stored version.
+    return [
+      'probe',
+      toMillis(prod?.updatedAt),
+      toMillis(cat?.updatedAt),
+      prod?.id || '',
+      cat?.id || '',
+    ].join(':')
+  } catch {
+    return null
+  }
+}
+
 export function CatalogProvider({ children }) {
   const cached = readCache()
+  const cacheFresh = isCacheFresh(cached)
   const [products, setProducts] = useState(cached?.products || [])
   const [categories, setCategories] = useState(cached?.categories || [])
   const [coupons, setCoupons] = useState(cached?.coupons || [])
   const [banners, setBanners] = useState(cached?.banners || [])
-  const [source, setSource] = useState(cached?.source || 'loading')
-  const [loading, setLoading] = useState(!cached)
+  const [source, setSource] = useState(
+    cacheFresh && cached?.source ? cached.source : cached?.source || 'loading',
+  )
+  const [loading, setLoading] = useState(!(cacheFresh && cached?.products))
   const [error, setError] = useState(null)
+
+  const applyPayload = useCallback((payload, { persist = true } = {}) => {
+    setProducts(payload.products)
+    setCategories(payload.categories)
+    setCoupons(payload.coupons)
+    setBanners(payload.banners)
+    setSource(payload.source)
+    if (persist && payload.source === 'firestore') {
+      writeCache({
+        products: payload.products,
+        categories: payload.categories,
+        coupons: payload.coupons,
+        banners: payload.banners,
+        source: 'firestore',
+        version: buildCatalogVersion(payload.products, payload.categories),
+      })
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!isFirebaseConfigured) {
-      // Local/dev without Firebase only — static catalog for preview
       setProducts(FALLBACK_CATALOG_PRODUCTS)
       setCategories(catalogCategories)
       setCoupons([])
@@ -89,8 +201,6 @@ export function CatalogProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      // Load independently so one collection (e.g. banners rules) cannot wipe the catalog.
-      // Banners rules require active==true for public list — must filter in the query.
       const [prodOut, catOut, couponOut, bannerOut] = await Promise.all([
         safeList('products'),
         safeList('categories'),
@@ -137,11 +247,17 @@ export function CatalogProvider({ children }) {
       const failed = [prodOut, catOut, couponOut, bannerOut].filter((r) => !r.ok)
       const criticalFailed = !prodOut.ok
 
-      setProducts(nextProducts)
-      setCategories(nextCategories)
-      setCoupons(nextCoupons)
-      setBanners(nextBanners)
-      setSource(criticalFailed ? 'error' : 'firestore')
+      applyPayload(
+        {
+          products: nextProducts,
+          categories: nextCategories,
+          coupons: nextCoupons,
+          banners: nextBanners,
+          source: criticalFailed ? 'error' : 'firestore',
+        },
+        { persist: !criticalFailed },
+      )
+
       setError(
         criticalFailed
           ? prodOut.err?.message || 'Failed to load products from Firebase'
@@ -149,16 +265,6 @@ export function CatalogProvider({ children }) {
             ? `Partial catalog load (${failed.map((f) => f.name).join(', ')})`
             : null,
       )
-
-      if (!criticalFailed) {
-        writeCache({
-          products: nextProducts,
-          categories: nextCategories,
-          coupons: nextCoupons,
-          banners: nextBanners,
-          source: 'firestore',
-        })
-      }
     } catch (err) {
       console.error('Catalog load failed', err?.code || err?.message || err)
       setError(err?.message || 'Failed to load catalog from Firebase')
@@ -166,14 +272,63 @@ export function CatalogProvider({ children }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyPayload])
 
   useEffect(() => {
-    load()
-    const onInvalidate = () => load()
+    let cancelled = false
+
+    async function boot() {
+      if (!isFirebaseConfigured) {
+        await load()
+        return
+      }
+
+      const existing = readCache()
+      const fresh = isCacheFresh(existing)
+
+      if (fresh && Array.isArray(existing.products)) {
+        // Serve cache immediately (already seeded into state)
+        setLoading(false)
+
+        // Lightweight remote change check; refresh if data changed
+        const remoteVersion = await fetchRemoteCatalogVersion()
+        if (cancelled) return
+
+        const cachedMaxProduct = Number(localVersion.split(':')[2] || 0)
+        const cachedMaxCategory = Number(localVersion.split(':')[3] || 0)
+        let remoteChanged = !localVersion
+        if (remoteVersion) {
+          const parts = remoteVersion.split(':')
+          const remoteProd = Number(parts[1] || 0)
+          const remoteCat = Number(parts[2] || 0)
+          if (remoteProd > 0 && remoteProd !== cachedMaxProduct) {
+            remoteChanged = true
+          }
+          if (remoteCat > 0 && remoteCat !== cachedMaxCategory) {
+            remoteChanged = true
+          }
+        }
+
+        if (remoteChanged) {
+          await load()
+        }
+        return
+      }
+
+      // Expired or missing cache → full fetch
+      await load()
+    }
+
+    boot()
+
+    const onInvalidate = () => {
+      if (!cancelled) load()
+    }
     window.addEventListener('noah:catalog-invalidate', onInvalidate)
-    return () =>
+    return () => {
+      cancelled = true
       window.removeEventListener('noah:catalog-invalidate', onInvalidate)
+    }
   }, [load])
 
   const value = useMemo(() => {

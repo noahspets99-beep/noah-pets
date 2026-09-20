@@ -5,6 +5,7 @@ import SectionHeader from './SectionHeader'
 
 export default function ShopCategorySection() {
   return (
+    
     <section className="bg-surface py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader

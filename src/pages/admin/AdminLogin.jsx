@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Eye, EyeOff, PawPrint } from 'lucide-react'
 import { useAuth } from '../../context/useAuth'
-import { loginAdmin, requestPasswordReset } from '../../services/adminAuth'
+import {
+  loginAdmin,
+  loginAdminWithGoogle,
+  requestPasswordReset,
+} from '../../services/adminAuth'
 
 function AuthLoadingScreen() {
   return (
@@ -16,7 +20,6 @@ function AuthLoadingScreen() {
 }
 
 export default function AdminLogin() {
-  const navigate = useNavigate()
   const { authReady, isAdmin, isAuthenticated, isFirebaseConfigured } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,18 +27,18 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotMsg, setForgotMsg] = useState('')
 
   if (!authReady) {
     return <AuthLoadingScreen />
   }
 
+  // Only the configured admin email is routed into Admin.
+  // Do NOT redirect non-admins away during a failed Google attempt — that
+  // race previously sent unauthorized accounts to the storefront mid-login.
   if (isAuthenticated && isAdmin) {
     return <Navigate to="/admin/dashboard" replace />
-  }
-
-  if (isAuthenticated && !isAdmin) {
-    return <Navigate to="/" replace />
   }
 
   const handleSubmit = async (e) => {
@@ -47,13 +50,19 @@ export default function AdminLogin() {
     setLoading(false)
     if (!result.ok) {
       setError(result.error)
-      return
     }
-    if (result.isAdmin) {
-      navigate('/admin/dashboard', { replace: true })
-      return
+    // Successful admin auth → AuthProvider sets isAdmin → Navigate above
+  }
+
+  const handleGoogle = async () => {
+    setError('')
+    setForgotMsg('')
+    setLoading(true)
+    const result = await loginAdminWithGoogle(remember)
+    setLoading(false)
+    if (!result.ok) {
+      if (!result.cancelled) setError(result.error)
     }
-    navigate('/', { replace: true })
   }
 
   const handleForgotPassword = async () => {
@@ -63,7 +72,9 @@ export default function AdminLogin() {
       setError('Enter your email above, then tap Forgot password.')
       return
     }
+    setForgotLoading(true)
     const result = await requestPasswordReset(email)
+    setForgotLoading(false)
     if (!result.ok) {
       setError(result.error)
       return
@@ -140,16 +151,17 @@ export default function AdminLogin() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            {error && (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-danger animate-fade-in"
-              >
-                {error}
-              </div>
-            )}
+          {(error || (isAuthenticated && !isAdmin)) && (
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-danger animate-fade-in"
+            >
+              {error ||
+                'Admin access required. Sign out of this account or use the administrator Google/email login.'}
+            </div>
+          )}
 
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
               <label htmlFor="admin-email" className="mb-1.5 block text-sm font-semibold text-ink">
                 Email
@@ -209,9 +221,10 @@ export default function AdminLogin() {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-sm font-semibold text-brand-600 hover:text-brand-700"
+                disabled={forgotLoading || loading || !isFirebaseConfigured}
+                className="text-sm font-semibold text-brand-600 hover:text-brand-700 disabled:opacity-60"
               >
-                Forgot password?
+                {forgotLoading ? 'Sending…' : 'Forgot password?'}
               </button>
             </div>
 
@@ -229,6 +242,20 @@ export default function AdminLogin() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          <div className="relative my-5 text-center text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="relative z-10 bg-white px-3">or</span>
+            <span className="absolute inset-x-0 top-1/2 border-t border-line" aria-hidden="true" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={loading || !isFirebaseConfigured}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white py-3 text-sm font-semibold text-ink transition hover:bg-surface disabled:opacity-60"
+          >
+            Continue with Google
+          </button>
 
           <p className="mt-8 text-center text-xs text-muted">
             <Link to="/" className="font-semibold text-brand-600 hover:text-brand-700">

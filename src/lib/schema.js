@@ -1,30 +1,30 @@
+import { STORE, formatStoreAddress } from '../config/store'
 import { isProductInStock, productStock } from '../services/catalogMapper'
+
+const siteUrl = String(STORE.siteUrl || 'https://noahspets.com').replace(/\/$/, '')
 
 export function organizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: "Noah's Pets",
-    url: 'https://noahspets.com',
-    logo: 'https://noahspets.com/image.jpeg',
-    email: 'noahspets99@gmail.com',
-    telephone: '+91-98765-43210',
+    name: STORE.name,
+    url: siteUrl,
+    logo: `${siteUrl}/image.jpeg`,
+    email: STORE.email,
+    telephone: STORE.phone,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: '42 Pet Care Avenue, T. Nagar',
-      addressLocality: 'Chennai',
-      addressRegion: 'Tamil Nadu',
-      postalCode: '600017',
+      streetAddress: STORE.address.line1,
+      addressLocality: STORE.address.city,
+      addressRegion: STORE.address.state,
+      postalCode: STORE.address.pincode,
       addressCountry: 'IN',
     },
     areaServed: {
       '@type': 'State',
       name: 'Tamil Nadu',
     },
-    sameAs: [
-      'https://instagram.com/noahspets',
-      'https://facebook.com/noahspets',
-    ],
+    sameAs: [STORE.social.instagram, STORE.social.facebook],
   }
 }
 
@@ -32,13 +32,13 @@ export function websiteSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: "Noah's Pets",
-    url: 'https://noahspets.com',
+    name: STORE.name,
+    url: siteUrl,
     potentialAction: {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: 'https://noahspets.com/search?q={search_term_string}',
+        urlTemplate: `${siteUrl}/search?q={search_term_string}`,
       },
       'query-input': 'required name=search_term_string',
     },
@@ -80,7 +80,7 @@ export function productSchema(product, selectedVariant) {
     },
     offers: {
       '@type': 'Offer',
-      url: `https://noahspets.com/product/${product.slug}`,
+      url: `${siteUrl}/product/${product.slug}`,
       priceCurrency: 'INR',
       price: String(price),
       availability,
@@ -126,19 +126,21 @@ export function localBusinessSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'PetStore',
-    name: "Noah's Pets",
-    image: 'https://noahspets.com/image.jpeg',
-    telephone: '+91-98765-43210',
-    email: 'noahspets99@gmail.com',
-    url: 'https://noahspets.com',
+    name: STORE.name,
+    image: `${siteUrl}/image.jpeg`,
+    telephone: STORE.phone,
+    email: STORE.email,
+    url: siteUrl,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: '42 Pet Care Avenue, T. Nagar',
-      addressLocality: 'Chennai',
-      addressRegion: 'Tamil Nadu',
-      postalCode: '600017',
+      streetAddress: STORE.address.line1,
+      addressLocality: STORE.address.city,
+      addressRegion: STORE.address.state,
+      postalCode: STORE.address.pincode,
       addressCountry: 'IN',
     },
+    description: formatStoreAddress(),
+    hasMap: STORE.mapsUrl,
     areaServed: TN_PRIORITY.map((c) => ({
       '@type': 'City',
       name: c,

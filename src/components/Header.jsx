@@ -15,11 +15,8 @@ import MobileMenu from './MobileMenu'
 
 const navLinks = [
   { label: 'Home', to: '/' },
-  { label: 'Dogs', to: '/products/dogs' },
-  { label: 'Cats', to: '/products/cats' },
-  { label: 'Food', to: '/products/dog-food' },
-  { label: 'Toys', to: '/products/toys' },
-  { label: 'Offers', to: '/offers' },
+  { label: 'Shop', to: '/#featured' },
+  { label: 'About Us', to: '/about' },
   { label: 'Blog', to: '/blog' },
   { label: 'Contact', to: '/contact' },
 ]
@@ -317,7 +314,7 @@ export default function Header() {
                   {totalMatches} result{totalMatches === 1 ? '' : 's'}
                 </p>
                 <ul className="space-y-2">
-                  {searchProducts(products, searchQuery).map((product) => (
+                  {searchMatches.map((product) => (
                     <li key={product.id}>
                       <Link
                         to={`/product/${product.slug || product.id}`}

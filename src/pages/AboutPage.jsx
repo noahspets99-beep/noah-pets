@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { STORE } from '../config/store'
+import { STORE, formatStoreAddress } from '../config/store'
 import SeoHead from '../components/seo/SeoHead'
 
 export default function AboutPage() {
@@ -15,19 +15,40 @@ export default function AboutPage() {
       </h1>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-soft sm:text-base">
         <p>
-          Noah&apos;s Pets started with a simple idea: Tamil Nadu pet parents
-          deserve the same brand depth and freshness as big metros — without
-          waiting weeks for stock.
+          Noah&apos;s Pets is an online pet store based in Kolathur, Chennai,
+          serving pet parents across Tamil Nadu with carefully selected food,
+          toys, grooming and accessories.
         </p>
         <p>
-          From our base in {STORE.address.city}, we curate dog food, cat litter,
-          toys, grooming and aquarium supplies from trusted names like Pedigree,
-          Royal Canin and Whiskas, plus house favourites.
+          We curate dog food, cat litter, toys, grooming and aquarium supplies
+          from trusted brands, with transparent INR pricing and a GST invoice on
+          every paid order.
         </p>
         <p>
-          Every order includes transparent INR pricing and a GST invoice. We
-          pack carefully for TN heat and humidity, and ship statewide with clear
-          delivery expectations.
+          Orders are prepared and packed at our Chennai location, then handed
+          over to courier/transport partners for statewide delivery. Customers
+          are responsible for providing an accurate delivery address and being
+          available to receive their order.
+        </p>
+        <p>
+          <strong className="text-ink">Address:</strong>{' '}
+          <a
+            href={STORE.mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-brand-600 hover:text-brand-700"
+          >
+            {formatStoreAddress()}
+          </a>
+        </p>
+        <p>
+          <strong className="text-ink">Support:</strong>{' '}
+          <a
+            href={`mailto:${STORE.email}`}
+            className="font-semibold text-brand-600 hover:text-brand-700"
+          >
+            {STORE.email}
+          </a>
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-3">

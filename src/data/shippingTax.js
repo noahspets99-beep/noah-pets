@@ -23,7 +23,7 @@ export const shippingSettings = {
   ],
   remoteAreaSurcharge: 40,
   notes:
-    'Standard delivery across Tamil Nadu. Free shipping on orders ₹999+. Express available in select metro pin codes.',
+    'Standard delivery across Tamil Nadu. Free shipping on orders ₹999+. After handover to the courier/transport agency, delivery is handled by that agency. Orders cannot be cancelled once placed.',
 }
 
 export const taxSettings = {
