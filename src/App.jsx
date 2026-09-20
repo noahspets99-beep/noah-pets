@@ -23,6 +23,7 @@ import ReturnsPage from './pages/ReturnsPage'
 import SearchPage from './pages/SearchPage'
 import ShippingPage from './pages/ShippingPage'
 import ShopHomePage from './pages/ShopHomePage'
+import ShopPage from './pages/ShopPage'
 import TermsPage from './pages/TermsPage'
 import PrivacyPage from './pages/PrivacyPage'
 import WishlistPage from './pages/WishlistPage'
@@ -79,6 +80,7 @@ function App() {
           <Routes>
             <Route element={<StoreLayout />}>
               <Route index element={<ShopHomePage />} />
+              <Route path="shop" element={<ShopPage />} />
               <Route path="products/:categorySlug" element={<CategoryPage />} />
               <Route path="product/:slug" element={<ProductDetailPage />} />
               <Route path="search" element={<SearchPage />} />

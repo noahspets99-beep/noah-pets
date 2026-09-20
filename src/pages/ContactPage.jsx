@@ -19,9 +19,16 @@ export default function ContactPage() {
         Contact Us
       </h1>
       <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-        Noah&apos;s Pets is based in Kolathur, Chennai and delivers pet food and
-        supplies across Tamil Nadu. Reach out for order help, stock questions or
-        partnership enquiries.
+        Noah&apos;s Pets is based in Kolathur, Chennai and delivers pet products
+        across India. Reach out for order help, shipping support or payment
+        questions at{' '}
+        <a
+          href={`mailto:${STORE.email}`}
+          className="font-semibold text-brand-600 hover:text-brand-700"
+        >
+          {STORE.email}
+        </a>
+        .
       </p>
 
       <div className="mt-8 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
@@ -100,6 +107,22 @@ export default function ContactPage() {
 
       <section className="mt-12">
         <h2 className="text-xl font-extrabold text-ink">
+          Customer support
+        </h2>
+        <p className="mt-2 text-sm text-muted">
+          For the fastest help with orders, shipping or payment issues, email{' '}
+          <a
+            href={`mailto:${STORE.email}`}
+            className="font-semibold text-brand-600 hover:text-brand-700"
+          >
+            {STORE.email}
+          </a>
+          .
+        </p>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-xl font-extrabold text-ink">
           Service areas in Tamil Nadu
         </h2>
         <p className="mt-2 text-sm text-muted">
@@ -120,7 +143,7 @@ export default function ContactPage() {
       <p className="mt-8 text-sm text-muted">
         For shipping and refund policies, see{' '}
         <Link to="/shipping" className="font-semibold text-brand-600">
-          Shipping Policy
+          Shipping &amp; Delivery Policy
         </Link>{' '}
         and{' '}
         <Link to="/returns" className="font-semibold text-brand-600">

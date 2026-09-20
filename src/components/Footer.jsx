@@ -19,8 +19,8 @@ const columns = [
     title: 'Help',
     links: [
       { label: 'Contact Us', to: '/contact' },
-      { label: 'Shipping Policy', to: '/shipping' },
-      { label: 'Refund & Cancellation', to: '/returns' },
+      { label: 'Shipping & Delivery Policy', to: '/shipping' },
+      { label: 'Refund & Cancellation Policy', to: '/returns' },
       { label: 'FAQs', to: '/faq' },
       { label: 'Track Order', to: '/orders' },
     ],
@@ -167,17 +167,23 @@ export default function Footer() {
         <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Noah&apos;s Pets. All rights reserved.</p>
           <p className="flex flex-wrap gap-x-3 gap-y-1">
-            <Link to="/terms" className="hover:text-white">
-              Terms
+            <Link to="/about" className="hover:text-white">
+              About Us
+            </Link>
+            <Link to="/contact" className="hover:text-white">
+              Contact Us
             </Link>
             <Link to="/privacy" className="hover:text-white">
-              Privacy
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-white">
+              Terms &amp; Conditions
             </Link>
             <Link to="/returns" className="hover:text-white">
-              Refunds
+              Refund &amp; Cancellation
             </Link>
             <Link to="/shipping" className="hover:text-white">
-              Shipping
+              Shipping &amp; Delivery
             </Link>
           </p>
         </div>

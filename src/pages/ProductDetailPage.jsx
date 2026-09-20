@@ -14,6 +14,7 @@ import {
   toStorefrontProduct,
 } from '../data/catalog'
 import { absoluteUrl } from '../lib/slug'
+import { STORE } from '../config/store'
 import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import {
@@ -383,16 +384,38 @@ export default function ProductDetailPage() {
           )}
           {tab === 'delivery' && (
             <p>
-              Standard delivery across Tamil Nadu in 2–5 business days. Free
-              shipping on orders ₹999+. Express options may be available in
-              Chennai metro pin codes.
+              Noah&apos;s Pets delivers products across India. Orders are
+              processed and dispatched after successful payment confirmation.
+              After handover to the courier, delivery is handled by the delivery
+              agency. See our{' '}
+              <Link
+                to="/shipping"
+                className="font-semibold text-brand-600 hover:text-brand-700"
+              >
+                Shipping &amp; Delivery Policy
+              </Link>
+              .
             </p>
           )}
           {tab === 'returns' && (
             <p>
-              Unopened items in original packaging can be returned within 7 days.
-              Opened food, treats and hygiene products are non-returnable.
-              Damaged shipments — contact us within 48 hours with photos.
+              Once payment is completed, orders cannot be cancelled and products
+              cannot be returned under the normal order policy. Payment issues —
+              contact{' '}
+              <a
+                href={`mailto:${STORE.email}`}
+                className="font-semibold text-brand-600 hover:text-brand-700"
+              >
+                {STORE.email}
+              </a>
+              . Full details are in our{' '}
+              <Link
+                to="/returns"
+                className="font-semibold text-brand-600 hover:text-brand-700"
+              >
+                Refund &amp; Cancellation Policy
+              </Link>
+              .
             </p>
           )}
         </div>

@@ -112,6 +112,8 @@ export function adminProductToStorefront(p) {
     frequentlyBoughtWith: p.frequentlyBoughtWith || [],
     active,
     status: p.status,
+    updatedAt: p.updatedAt || null,
+    createdAt: p.createdAt || null,
   })
 }
 

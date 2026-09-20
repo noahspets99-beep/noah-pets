@@ -23,7 +23,7 @@ export const shippingSettings = {
   ],
   remoteAreaSurcharge: 40,
   notes:
-    'Standard delivery across Tamil Nadu. Free shipping on orders ₹999+. After handover to the courier/transport agency, delivery is handled by that agency. Orders cannot be cancelled once placed.',
+    'Noah\'s Pets delivers products across India. After handover to the courier/delivery agency, delivery is handled by that agency. Orders cannot be cancelled once payment is successfully completed.',
 }
 
 export const taxSettings = {

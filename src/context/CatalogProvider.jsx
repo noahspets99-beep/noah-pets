@@ -18,7 +18,7 @@ import {
 
 const CatalogContext = createContext(null)
 
-const CACHE_KEY = 'noah_catalog_cache_v3'
+const CACHE_KEY = 'noah_catalog_cache_v4'
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
 
 function toMillis(value) {
@@ -41,30 +41,38 @@ function toMillis(value) {
   return 0
 }
 
-/** Lightweight fingerprint from public catalog rows (uses existing updatedAt when present). */
-function buildCatalogVersion(products = [], categories = []) {
-  let maxProduct = 0
-  for (const p of products) {
-    maxProduct = Math.max(
-      maxProduct,
-      toMillis(p.updatedAt),
-      toMillis(p.createdAt),
-    )
+function maxDocMillis(docs = []) {
+  let max = 0
+  for (const d of docs) {
+    max = Math.max(max, toMillis(d?.updatedAt), toMillis(d?.createdAt))
   }
-  let maxCategory = 0
-  for (const c of categories) {
-    maxCategory = Math.max(
-      maxCategory,
-      toMillis(c.updatedAt),
-      toMillis(c.createdAt),
-    )
-  }
+  return max
+}
+
+/**
+ * Fingerprint of the storefront-visible catalog.
+ * Includes sorted IDs so deletes/adds are detected even when timestamps are ambiguous,
+ * and max updatedAt across ALL raw docs so soft-deletes bump the version.
+ */
+function buildCatalogVersion(visibleProducts = [], visibleCategories = [], rawProducts = [], rawCategories = []) {
+  const productIds = visibleProducts
+    .map((p) => p.id)
+    .filter(Boolean)
+    .sort()
+    .join(',')
+  const categoryIds = visibleCategories
+    .map((c) => c.id)
+    .filter(Boolean)
+    .sort()
+    .join(',')
   return [
-    products.length,
-    categories.length,
-    maxProduct,
-    maxCategory,
-  ].join(':')
+    visibleProducts.length,
+    visibleCategories.length,
+    maxDocMillis(rawProducts.length ? rawProducts : visibleProducts),
+    maxDocMillis(rawCategories.length ? rawCategories : visibleCategories),
+    productIds,
+    categoryIds,
+  ].join('|')
 }
 
 function readCache() {
@@ -98,6 +106,7 @@ function isCacheFresh(cache) {
 export function invalidateCatalogCache() {
   try {
     localStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem('noah_catalog_cache_v3')
     sessionStorage.removeItem('noah_catalog_cache_v2')
   } catch {
     /* ignore */
@@ -115,44 +124,44 @@ async function safeList(name, constraints = []) {
   }
 }
 
+function mapVisibleProducts(raw = []) {
+  return raw.map(adminProductToStorefront).filter(isStorefrontVisible)
+}
+
+function mapVisibleCategories(raw = []) {
+  return raw.filter((c) => c.active !== false && c.status !== 'Inactive')
+}
+
 /**
- * Lightweight change check using existing updatedAt fields (newest doc only).
- * Falls back to null when the query is unavailable so TTL still governs refresh.
+ * Compare live Firestore catalog to cached version.
+ * Returns null on failure (caller should full-refresh).
+ * Returns { changed: false } when cache still matches.
+ * Returns { changed: true, products, categories, version } when out of date.
  */
-async function fetchRemoteCatalogVersion() {
-  try {
-    const [prodOut, catOut] = await Promise.all([
-      safeList('products', [
-        fsQuery.orderBy('updatedAt', 'desc'),
-        fsQuery.limit(1),
-      ]),
-      safeList('categories', [
-        fsQuery.orderBy('updatedAt', 'desc'),
-        fsQuery.limit(1),
-      ]),
-    ])
+async function probeCatalogAgainstCache(cachedVersion) {
+  const [prodOut, catOut] = await Promise.all([
+    safeList('products'),
+    safeList('categories'),
+  ])
 
-    if (!prodOut.ok && !catOut.ok) return null
+  if (!prodOut.ok || prodOut.res.mode !== 'firestore') return null
+  if (!catOut.ok || catOut.res.mode !== 'firestore') return null
 
-    const prod = prodOut.ok && prodOut.res.mode === 'firestore'
-      ? prodOut.res.data?.[0]
-      : null
-    const cat = catOut.ok && catOut.res.mode === 'firestore'
-      ? catOut.res.data?.[0]
-      : null
+  const rawProducts = Array.isArray(prodOut.res.data) ? prodOut.res.data : []
+  const rawCategories = Array.isArray(catOut.res.data) ? catOut.res.data : []
+  const products = mapVisibleProducts(rawProducts)
+  const categories = mapVisibleCategories(rawCategories)
+  const version = buildCatalogVersion(
+    products,
+    categories,
+    rawProducts,
+    rawCategories,
+  )
 
-    // Count is unknown from limit(1); include max timestamps as change signal.
-    // Full load still reconciles exact counts into the stored version.
-    return [
-      'probe',
-      toMillis(prod?.updatedAt),
-      toMillis(cat?.updatedAt),
-      prod?.id || '',
-      cat?.id || '',
-    ].join(':')
-  } catch {
-    return null
+  if (cachedVersion && version === cachedVersion) {
+    return { changed: false, version, products, categories }
   }
+  return { changed: true, version, products, categories }
 }
 
 export function CatalogProvider({ children }) {
@@ -168,7 +177,7 @@ export function CatalogProvider({ children }) {
   const [loading, setLoading] = useState(!(cacheFresh && cached?.products))
   const [error, setError] = useState(null)
 
-  const applyPayload = useCallback((payload, { persist = true } = {}) => {
+  const applyPayload = useCallback((payload, { persist = true, version } = {}) => {
     setProducts(payload.products)
     setCategories(payload.categories)
     setCoupons(payload.coupons)
@@ -181,7 +190,9 @@ export function CatalogProvider({ children }) {
         coupons: payload.coupons,
         banners: payload.banners,
         source: 'firestore',
-        version: buildCatalogVersion(payload.products, payload.categories),
+        version:
+          version ||
+          buildCatalogVersion(payload.products, payload.categories),
       })
     }
   }, [])
@@ -209,17 +220,17 @@ export function CatalogProvider({ children }) {
       ])
 
       let nextProducts = []
+      let rawProducts = []
       if (prodOut.ok && prodOut.res.mode === 'firestore' && Array.isArray(prodOut.res.data)) {
-        nextProducts = prodOut.res.data
-          .map(adminProductToStorefront)
-          .filter(isStorefrontVisible)
+        rawProducts = prodOut.res.data
+        nextProducts = mapVisibleProducts(rawProducts)
       }
 
       let nextCategories = []
+      let rawCategories = []
       if (catOut.ok && catOut.res.mode === 'firestore' && Array.isArray(catOut.res.data)) {
-        nextCategories = catOut.res.data.filter(
-          (c) => c.active !== false && c.status !== 'Inactive',
-        )
+        rawCategories = catOut.res.data
+        nextCategories = mapVisibleCategories(rawCategories)
       }
 
       let nextCoupons = []
@@ -247,6 +258,13 @@ export function CatalogProvider({ children }) {
       const failed = [prodOut, catOut, couponOut, bannerOut].filter((r) => !r.ok)
       const criticalFailed = !prodOut.ok
 
+      const version = buildCatalogVersion(
+        nextProducts,
+        nextCategories,
+        rawProducts,
+        rawCategories,
+      )
+
       applyPayload(
         {
           products: nextProducts,
@@ -255,7 +273,7 @@ export function CatalogProvider({ children }) {
           banners: nextBanners,
           source: criticalFailed ? 'error' : 'firestore',
         },
-        { persist: !criticalFailed },
+        { persist: !criticalFailed, version },
       )
 
       setError(
@@ -290,26 +308,12 @@ export function CatalogProvider({ children }) {
         // Serve cache immediately (already seeded into state)
         setLoading(false)
 
-        // Lightweight remote change check; refresh if data changed
-        const remoteVersion = await fetchRemoteCatalogVersion()
+        const probe = await probeCatalogAgainstCache(existing.version || '')
         if (cancelled) return
 
-        const cachedMaxProduct = Number(localVersion.split(':')[2] || 0)
-        const cachedMaxCategory = Number(localVersion.split(':')[3] || 0)
-        let remoteChanged = !localVersion
-        if (remoteVersion) {
-          const parts = remoteVersion.split(':')
-          const remoteProd = Number(parts[1] || 0)
-          const remoteCat = Number(parts[2] || 0)
-          if (remoteProd > 0 && remoteProd !== cachedMaxProduct) {
-            remoteChanged = true
-          }
-          if (remoteCat > 0 && remoteCat !== cachedMaxCategory) {
-            remoteChanged = true
-          }
-        }
-
-        if (remoteChanged) {
+        // Probe failed or catalog changed (add/edit/delete) → full reload.
+        // Matching fingerprint keeps the 12h cache without trusting stale IDs.
+        if (!probe || probe.changed) {
           await load()
         }
         return

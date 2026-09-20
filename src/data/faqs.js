@@ -1,11 +1,13 @@
-/** Storefront FAQs — delivery, returns, payment, stock (Tamil Nadu) */
+/** Storefront FAQs — delivery, returns, payment, stock */
+
+import { STORE } from '../config/store'
 
 export const faqs = [
   {
     id: 'faq1',
-    question: 'Do you deliver across Tamil Nadu?',
+    question: 'Do you deliver across India?',
     answer:
-      "Yes. Noah's Pets delivers across Tamil Nadu including Chennai, Coimbatore, Madurai, Tiruchirappalli, Salem and Tirunelveli. Metro areas usually arrive in 2–4 business days; other districts may take up to 5 business days.",
+      "Yes. Noah's Pets delivers products across India. Shipping charges, if any, are shown at checkout before you complete payment.",
     category: 'Delivery',
     sortOrder: 1,
   },
@@ -13,7 +15,7 @@ export const faqs = [
     id: 'faq2',
     question: 'Is there free shipping?',
     answer:
-      'Orders of ₹999 and above qualify for free standard shipping within Tamil Nadu. Below ₹999, a flat delivery fee applies (shown at checkout). Heavy aquariums or oversized items may have special shipping notes on the product page.',
+      'Shipping charges, if any, are calculated and shown at checkout before you complete payment. Orders that qualify for free shipping will show a free shipping amount at checkout.',
     category: 'Delivery',
     sortOrder: 2,
   },
@@ -21,15 +23,14 @@ export const faqs = [
     id: 'faq3',
     question: 'What is your return and refund policy?',
     answer:
-      "Once an order is placed, it cannot be cancelled by the customer. Unopened, unused items in original packaging may be eligible for return within 7 days of delivery. Opened pet food, treats, litter and hygiene products are non-returnable. Damaged or wrong items — contact us within 48 hours with photos. Full details are on our Refund & Cancellation Policy page.",
+      "Once payment has been successfully completed, the order cannot be cancelled. Products cannot be returned after purchase, and refunds are not available under the normal order policy merely because a customer changes their mind. Full details are on our Refund & Cancellation Policy page.",
     category: 'Returns',
     sortOrder: 3,
   },
   {
     id: 'faq4',
-    question: 'How do refunds work?',
-    answer:
-      'Where a refund is approved under our Refund & Cancellation Policy, it is credited to the original payment method according to that policy and the payment provider’s processing timelines. Contact noahspets99@gmail.com with your order ID for help.',
+    question: 'What if I have a payment problem?',
+    answer: `If a payment is stuck, failed, deducted but the order is not confirmed, or you experience another payment-related issue, contact ${STORE.email}. Payment issues are reviewed by Noah's Pets and, where applicable, resolved according to the payment provider or bank transaction status and applicable rules. A payment issue does not automatically qualify for a refund.`,
     category: 'Returns',
     sortOrder: 4,
   },
@@ -43,9 +44,9 @@ export const faqs = [
   },
   {
     id: 'faq6',
-    question: 'Will I get a GST invoice?',
+    question: 'Will I get an invoice?',
     answer:
-      'Yes. Every paid order includes a GST-compliant invoice. Exact tax rates appear on the invoice line items.',
+      'Order and payment details are recorded for your purchase. Contact us at the support email if you need help locating your order information.',
     category: 'Payment',
     sortOrder: 6,
   },
@@ -60,8 +61,7 @@ export const faqs = [
   {
     id: 'faq8',
     question: 'Can I cancel my order after placing it?',
-    answer:
-      'No. Once an order has been successfully placed, it cannot be cancelled by the customer. Please review your cart and delivery address carefully before completing payment. After handover to the courier, delivery is handled by the courier/transport agency; contact noahspets99@gmail.com if you need support.',
+    answer: `No. Once payment has been successfully completed, the order cannot be cancelled. Please review your cart and delivery address carefully before completing payment. After handover to the courier, delivery is handled by the delivery agency; contact ${STORE.email} if you need shipping support.`,
     category: 'Delivery',
     sortOrder: 8,
   },

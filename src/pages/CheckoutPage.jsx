@@ -488,6 +488,25 @@ export default function CheckoutPage() {
           >
             {payLabel}
           </button>
+          <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
+            By placing an order you agree to our{' '}
+            <Link to="/terms" className="font-semibold text-brand-600 hover:text-brand-700">
+              Terms &amp; Conditions
+            </Link>
+            ,{' '}
+            <Link to="/privacy" className="font-semibold text-brand-600 hover:text-brand-700">
+              Privacy Policy
+            </Link>
+            ,{' '}
+            <Link to="/returns" className="font-semibold text-brand-600 hover:text-brand-700">
+              Refund &amp; Cancellation Policy
+            </Link>
+            , and{' '}
+            <Link to="/shipping" className="font-semibold text-brand-600 hover:text-brand-700">
+              Shipping &amp; Delivery Policy
+            </Link>
+            .
+          </p>
           {!authReady ? null : !isAuthenticated ? (
             <p className="mt-2 text-center text-xs text-muted">
               Sign in or create an account to place your order securely.

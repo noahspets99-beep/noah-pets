@@ -2109,6 +2109,8 @@ export function toStorefrontProduct(p) {
     seo: p.seo,
     relatedIds: p.relatedIds,
     frequentlyBoughtWith: p.frequentlyBoughtWith,
+    updatedAt: p.updatedAt || null,
+    createdAt: p.createdAt || null,
   }
 }
 

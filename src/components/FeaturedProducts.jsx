@@ -1,13 +1,11 @@
-import { useMemo, useState } from 'react'
-import { filterTabs as fallbackFilterTabs } from '../data/products'
+import { useEffect, useMemo, useState } from 'react'
 import { useCatalog } from '../context/CatalogProvider'
 import { useShop } from '../context/useShop'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 /**
- * Featured Products filters use admin-managed categories when available.
- * Admin categories are not promoted elsewhere on the storefront as nav/sections.
+ * Featured Products filters use currently active Admin categories only.
  */
 export default function FeaturedProducts() {
   const { searchQuery } = useShop()
@@ -21,9 +19,12 @@ export default function FeaturedProducts() {
       .map((c) => String(c.name || '').trim())
       .filter(Boolean)
     const unique = [...new Set(names)]
-    if (unique.length === 0) return fallbackFilterTabs
     return ['All', ...unique]
   }, [categories])
+
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) setActiveTab('All')
+  }, [tabs, activeTab])
 
   const filtered = useMemo(() => {
     let list =

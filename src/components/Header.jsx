@@ -15,7 +15,7 @@ import MobileMenu from './MobileMenu'
 
 const navLinks = [
   { label: 'Home', to: '/' },
-  { label: 'Shop', to: '/#featured' },
+  { label: 'Shop', to: '/shop' },
   { label: 'About Us', to: '/about' },
   { label: 'Blog', to: '/blog' },
   { label: 'Contact', to: '/contact' },

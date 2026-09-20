@@ -3,7 +3,7 @@ export const STORE = {
   tagline: 'Premium Pet Care',
   shortDescription:
     'Premium pet food, toys, grooming and accessories delivered across Tamil Nadu.',
-  email: 'noahspets99@gmail.com',
+  email: 'mailnoahspets99@gmail.com',
   phone: '+91 9710101045',
   whatsapp: '+91 9710101045',
   address: {
