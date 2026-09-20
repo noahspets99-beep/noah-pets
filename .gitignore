@@ -45,3 +45,5 @@ functions/.env
 
 # Misc
 eslint-out.txt
+.vercel
+.env*
