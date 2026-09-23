@@ -4,6 +4,7 @@ import { formatPrice } from '../data/products'
 import { useAuth } from '../context/useAuth'
 import { useShop } from '../context/useShop'
 import SeoHead from '../components/seo/SeoHead'
+import { normalizeOrderStatus } from '../lib/orderStatus'
 
 export default function OrdersPage() {
   const { orders } = useShop()
@@ -62,7 +63,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="text-right">
                   <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
-                    {order.status}
+                    {normalizeOrderStatus(order.status)}
                   </span>
                   <p className="mt-2 text-sm font-extrabold text-ink">
                     {formatPrice(order.total)}
@@ -71,8 +72,7 @@ export default function OrdersPage() {
               </div>
               <p className="mt-3 text-sm text-muted">
                 {order.items?.length || 0} item
-                {(order.items?.length || 0) === 1 ? '' : 's'} · Payment{' '}
-                {order.paymentStatus}
+                {(order.items?.length || 0) === 1 ? '' : 's'}
               </p>
             </li>
           ))}

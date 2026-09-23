@@ -2,8 +2,8 @@ export const STORE = {
   name: "Noah's Pets",
   tagline: 'Premium Pet Care',
   shortDescription:
-    'Premium pet food, toys, grooming and accessories delivered across Tamil Nadu.',
-  email: 'mailnoahspets99@gmail.com',
+    'Premium pet food, toys, grooming and accessories delivered across India.',
+  email: 'noahspets99@gmail.com',
   phone: '+91 9710101045',
   whatsapp: '+91 9710101045',
   address: {
@@ -128,22 +128,18 @@ export const TN_SERVICE_AREAS = [
 export const ORDER_STATUSES = [
   'Pending',
   'Confirmed',
-  'Processing',
-  'Shipped',
-  'Out for Delivery',
   'Delivered',
   'Cancelled',
-  'Returned',
-  'Refunded',
 ]
 
 export const DEFAULT_SEO = {
   titleTemplate: "%s | Noah's Pets",
-  defaultTitle: "Pet Food & Supplies Online in Tamil Nadu | Noah's Pets",
+  defaultTitle: "Pet Food & Supplies Online in India | Noah's Pets",
   defaultDescription:
-    'Buy dog food, cat food, toys, litter and pet accessories online across Tamil Nadu. Fast delivery to Chennai, Coimbatore, Madurai, Tirunelveli and more.',
+    "Buy dog food, cat food, toys, litter and pet accessories online. We deliver across India from Noah's Pets in Chennai.",
   keywords:
-    'pet shop Tamil Nadu, pet food online Tamil Nadu, dog food online Tamil Nadu, cat food online Tamil Nadu, pet store Chennai, pet shop Coimbatore',
+    'pet shop India, pet food online India, dog food online, cat food online, pet store Chennai, Noah Pets',
+  ogImage: '/image.jpeg',
 }
 
 export const TN_DISTRICTS = [

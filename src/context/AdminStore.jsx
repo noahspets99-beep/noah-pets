@@ -22,10 +22,13 @@ import {
   subscribeCollection,
   upsertDocument,
   patchDocument,
+  removeDocument,
+  getDocument,
   isFirebaseConfigured,
 } from '../services/firestore/repository'
 import { invalidateCatalogCache } from './CatalogProvider'
 import { stripUndefined } from '../services/catalogMapper'
+import { normalizeOrderStatus, ORDER_STATUSES } from '../lib/orderStatus'
 
 function uid(prefix) {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -135,7 +138,7 @@ function buildInitialSeoSettings() {
     robotsNotes:
       'Allow crawl of storefront pages. Disallow /admin, /admin-login, /cart, /checkout, and account routes in production robots.txt.',
     social: {
-      ogTitle: "Noah's Pets — Pet Food & Supplies in Tamil Nadu",
+      ogTitle: "Noah's Pets — Pet Food & Supplies Online in India",
       ogDescription: DEFAULT_SEO.defaultDescription,
       ogImage: '',
       twitterCard: 'summary_large_image',
@@ -143,7 +146,7 @@ function buildInitialSeoSettings() {
     locationSeo: TN_PRIORITY_CITIES.map((c) => ({
       slug: c.slug,
       name: c.name,
-      title: `Pet Shop in ${c.name} | Noah's Pets Tamil Nadu`,
+      title: `Pet Shop in ${c.name} | Noah's Pets`,
       description: c.highlights,
     })),
   }
@@ -189,6 +192,7 @@ function normalizeAdminOrder(raw) {
     (typeof raw.payment === 'string' ? raw.payment : null) ||
     'Pending'
   const createdAt = toIsoDate(raw.createdAt) || toIsoDate(raw.updatedAt)
+  const ship = raw.shippingAddress || {}
   return {
     ...raw,
     createdAt,
@@ -199,6 +203,14 @@ function normalizeAdminOrder(raw) {
       email: customer.email || '',
       phone: customer.phone || customer.mobile || '',
     },
+    shippingAddress: {
+      ...ship,
+      line1: ship.line1 || ship.address || '',
+      line2: ship.line2 || ship.area || '',
+      city: ship.city || '',
+      state: ship.state || '',
+      pincode: ship.pincode || '',
+    },
     items: Array.isArray(raw.items) ? raw.items : [],
     payment: paymentStatus,
     paymentStatus,
@@ -207,8 +219,52 @@ function normalizeAdminOrder(raw) {
     discount: raw.discount ?? 0,
     tax: raw.tax ?? 0,
     total: Number(raw.total) || 0,
-    status: raw.status || 'Pending',
+    status: normalizeOrderStatus(raw.status),
     timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
+  }
+}
+
+function normalizeCustomer(raw) {
+  if (!raw) return null
+  const address =
+    raw.address && typeof raw.address === 'object'
+      ? {
+          line1: raw.address.line1 || raw.address.address || '',
+          line2: raw.address.line2 || raw.address.area || '',
+          city: raw.address.city || '',
+          state: raw.address.state || '',
+          pincode: raw.address.pincode || '',
+        }
+      : null
+  return {
+    ...raw,
+    id: raw.id || raw.uid || raw.customerId,
+    name: raw.name || raw.displayName || 'Customer',
+    email: raw.email || '',
+    phone: raw.phone || raw.mobile || '',
+    mobile: raw.mobile || raw.phone || '',
+    avatar: raw.avatar || raw.photoURL || null,
+    address,
+    orders: Number(raw.orders ?? raw.orderCount ?? 0) || 0,
+    totalSpent: Number(raw.totalSpent) || 0,
+    lastOrderAt: toIsoDate(raw.lastOrderAt) || null,
+    joinedAt: toIsoDate(raw.joinedAt) || toIsoDate(raw.createdAt) || null,
+    status: raw.status || 'Active',
+  }
+}
+
+function addressFromOrder(order) {
+  const ship = order?.shippingAddress || order?.customer || null
+  if (!ship || typeof ship !== 'object') return null
+  const line1 = ship.line1 || ship.address || ''
+  const city = ship.city || ''
+  if (!line1 && !city) return null
+  return {
+    line1,
+    line2: ship.line2 || ship.area || '',
+    city,
+    state: ship.state || '',
+    pincode: ship.pincode || '',
   }
 }
 
@@ -223,20 +279,29 @@ function customersFromOrders(orders) {
     if (!key) continue
     const existing = map.get(key)
     const total = Number(o.total) || 0
+    const address = addressFromOrder(o)
     if (!existing) {
       map.set(key, {
         id: key,
         name: o.customer?.name || 'Customer',
-        email: o.customer?.email || '',
-        phone: o.customer?.phone || o.customer?.mobile || '',
+        email: o.customer?.email || o.shippingAddress?.email || '',
+        phone:
+          o.customer?.phone ||
+          o.customer?.mobile ||
+          o.shippingAddress?.mobile ||
+          '',
+        avatar: null,
+        address,
         orders: 1,
         totalSpent: total,
         lastOrderAt: o.createdAt || null,
+        joinedAt: o.createdAt || null,
         status: 'Active',
       })
     } else {
       existing.orders += 1
       existing.totalSpent += total
+      if (!existing.address && address) existing.address = address
       if (
         o.createdAt &&
         (!existing.lastOrderAt ||
@@ -244,11 +309,21 @@ function customersFromOrders(orders) {
       ) {
         existing.lastOrderAt = o.createdAt
       }
+      if (
+        o.createdAt &&
+        (!existing.joinedAt ||
+          new Date(o.createdAt) < new Date(existing.joinedAt))
+      ) {
+        existing.joinedAt = o.createdAt
+      }
     }
   }
-  return [...map.values()].sort(
-    (a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0),
-  )
+  return [...map.values()]
+    .map(normalizeCustomer)
+    .filter(Boolean)
+    .sort(
+      (a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0),
+    )
 }
 
 function normalizeBlogPost(p) {
@@ -265,25 +340,24 @@ function normalizeBlogPost(p) {
 const STATUS_RANK = {
   Pending: 0,
   Confirmed: 1,
-  Processing: 2,
-  Shipped: 3,
-  'Out for Delivery': 4,
-  Delivered: 5,
+  Delivered: 2,
 }
 
-const TIMELINE_LABELS = [
-  'Order placed',
-  'Payment confirmed',
-  'Order processing',
-  'Shipped',
-  'Out for delivery',
-  'Delivered',
-]
+const TIMELINE_LABELS = ['Pending', 'Confirmed', 'Delivered']
 
 function applyOrderTimeline(order, status) {
-  const terminal = ['Cancelled', 'Returned', 'Refunded'].includes(status)
+  const terminal = status === 'Cancelled'
   const timeline = Array.isArray(order.timeline) ? order.timeline : []
-  if (terminal) return timeline.map((step) => step)
+  if (terminal) {
+    return [
+      {
+        label: 'Pending',
+        at: order.createdAt || new Date().toISOString(),
+        done: true,
+      },
+      { label: 'Cancelled', at: new Date().toISOString(), done: true },
+    ]
+  }
 
   const rank = STATUS_RANK[status] ?? 0
   return TIMELINE_LABELS.map((label, idx) => {
@@ -366,15 +440,25 @@ export function AdminStoreProvider({ children }) {
       setDataStatus((s) => ({ ...s, loading: true, error: null }))
 
       try {
-        const [prodRes, catRes, couponRes, customerRes, reviewRes, bannerRes] =
-          await Promise.all([
-            listCollection('products'),
-            listCollection('categories'),
-            listCollection('coupons'),
-            listCollection('customers'),
-            listCollection('reviews'),
-            listCollection('banners'),
-          ])
+        const [
+          prodRes,
+          catRes,
+          couponRes,
+          customerRes,
+          reviewRes,
+          bannerRes,
+          taxRes,
+          shippingRes,
+        ] = await Promise.all([
+          listCollection('products'),
+          listCollection('categories'),
+          listCollection('coupons'),
+          listCollection('customers'),
+          listCollection('reviews'),
+          listCollection('banners'),
+          getDocument('taxSettings', 'default'),
+          getDocument('shippingSettings', 'default'),
+        ])
 
         if (cancelled) return
 
@@ -396,17 +480,41 @@ export function AdminStoreProvider({ children }) {
         }
 
         if (customerRes.mode === 'firestore') {
-          setCustomers(customerRes.data || [])
+          setCustomers(
+            (customerRes.data || []).map(normalizeCustomer).filter(Boolean),
+          )
         }
 
         if (reviewRes.mode === 'firestore') {
-          setReviews(reviewRes.data || [])
+          setReviews(
+            (reviewRes.data || []).filter((r) => r.status !== 'Deleted'),
+          )
         }
 
         if (bannerRes.mode === 'firestore') {
           setBanners(bannerRes.data || [])
         } else {
           setBanners([])
+        }
+
+        if (taxRes.mode === 'firestore' && taxRes.data) {
+          const { id: _id, ...taxData } = taxRes.data
+          setTaxSettings((prev) => ({
+            ...prev,
+            ...taxData,
+            defaultRate: Number(taxData.defaultRate) || 0,
+            rates: Array.isArray(taxData.rates)
+              ? taxData.rates
+              : prev.rates,
+          }))
+        }
+
+        if (shippingRes.mode === 'firestore' && shippingRes.data) {
+          const { id: _sid, ...shipData } = shippingRes.data
+          setShippingSettings((prev) => ({
+            ...prev,
+            ...shipData,
+          }))
         }
 
         unsubOrders = subscribeCollection('orders', [], {
@@ -540,17 +648,15 @@ export function AdminStoreProvider({ children }) {
 
   const deleteProduct = useCallback(
     async (id) => {
-      const patch = {
-        active: false,
-        status: 'Draft',
-        updatedAt: new Date().toISOString(),
+      try {
+        await removeDocument('products', id)
+        setProducts((prev) => prev.filter((p) => p.id !== id))
+        invalidateCatalogCache()
+        pushToast('Product deleted')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to delete product', 'error')
+        throw err
       }
-      await upsertDocument('products', id, patch)
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-      )
-      invalidateCatalogCache()
-      pushToast('Product deactivated (hidden from storefront)')
     },
     [pushToast],
   )
@@ -573,17 +679,17 @@ export function AdminStoreProvider({ children }) {
 
   const bulkDeleteProducts = useCallback(
     async (ids) => {
-      const patch = {
-        active: false,
-        status: 'Draft',
-        updatedAt: new Date().toISOString(),
+      try {
+        await Promise.all(ids.map((id) => removeDocument('products', id)))
+        setProducts((prev) => prev.filter((p) => !ids.includes(p.id)))
+        invalidateCatalogCache()
+        pushToast(
+          `${ids.length} product${ids.length === 1 ? '' : 's'} deleted`,
+        )
+      } catch (err) {
+        pushToast(err?.message || 'Failed to delete products', 'error')
+        throw err
       }
-      await Promise.all(ids.map((id) => upsertDocument('products', id, patch)))
-      setProducts((prev) =>
-        prev.map((p) => (ids.includes(p.id) ? { ...p, ...patch } : p)),
-      )
-      invalidateCatalogCache()
-      pushToast(`${ids.length} product${ids.length === 1 ? '' : 's'} deactivated`)
     },
     [pushToast],
   )
@@ -717,18 +823,15 @@ export function AdminStoreProvider({ children }) {
 
   const deleteCategory = useCallback(
     async (id) => {
-      await upsertDocument('categories', id, {
-        active: false,
-        status: 'Inactive',
-        updatedAt: new Date().toISOString(),
-      })
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === id ? { ...c, active: false, status: 'Inactive' } : c,
-        ),
-      )
-      invalidateCatalogCache()
-      pushToast('Category deactivated')
+      try {
+        await removeDocument('categories', id)
+        setCategories((prev) => prev.filter((c) => c.id !== id))
+        invalidateCatalogCache()
+        pushToast('Category deleted')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to delete category', 'error')
+        throw err
+      }
     },
     [pushToast],
   )
@@ -738,6 +841,10 @@ export function AdminStoreProvider({ children }) {
       const current = orders.find((o) => o.id === id)
       if (!current) {
         pushToast('Order not found', 'error')
+        return
+      }
+      if (!ORDER_STATUSES.includes(status)) {
+        pushToast('Invalid order status', 'error')
         return
       }
       const timeline = applyOrderTimeline(current, status)
@@ -773,7 +880,7 @@ export function AdminStoreProvider({ children }) {
   const deleteReview = useCallback(
     async (id) => {
       try {
-        await upsertDocument('reviews', id, { status: 'Deleted' })
+        await removeDocument('reviews', id)
         setReviews((prev) => prev.filter((r) => r.id !== id))
         pushToast('Review removed')
       } catch (err) {
@@ -785,10 +892,16 @@ export function AdminStoreProvider({ children }) {
 
   const createBanner = useCallback(
     async (data) => {
+      // firestore.rules: public read requires active === true exactly
+      const active =
+        data.status === 'Active' ||
+        (data.status !== 'Inactive' &&
+          data.status !== 'Scheduled' &&
+          data.active !== false)
       const banner = {
         ...data,
         id: data.id || uid('b'),
-        active: data.active !== false,
+        active: active === true,
         updatedAt: new Date().toISOString(),
       }
       await upsertDocument('banners', banner.id, stripUndefined(banner))
@@ -802,7 +915,16 @@ export function AdminStoreProvider({ children }) {
 
   const updateBanner = useCallback(
     async (id, data) => {
-      const patch = { ...data, updatedAt: new Date().toISOString() }
+      const active =
+        data.status === 'Active' ||
+        (data.status !== 'Inactive' &&
+          data.status !== 'Scheduled' &&
+          data.active !== false)
+      const patch = {
+        ...data,
+        active: active === true,
+        updatedAt: new Date().toISOString(),
+      }
       await upsertDocument('banners', id, stripUndefined(patch))
       setBanners((prev) =>
         prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
@@ -815,15 +937,15 @@ export function AdminStoreProvider({ children }) {
 
   const deleteBanner = useCallback(
     async (id) => {
-      await upsertDocument('banners', id, {
-        active: false,
-        updatedAt: new Date().toISOString(),
-      })
-      setBanners((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, active: false } : b)),
-      )
-      invalidateCatalogCache()
-      pushToast('Banner deactivated')
+      try {
+        await removeDocument('banners', id)
+        setBanners((prev) => prev.filter((b) => b.id !== id))
+        invalidateCatalogCache()
+        pushToast('Banner deleted')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to delete banner', 'error')
+        throw err
+      }
     },
     [pushToast],
   )
@@ -880,8 +1002,11 @@ export function AdminStoreProvider({ children }) {
 
   const saveShippingSettings = useCallback(
     async (data) => {
-      await delay(300)
-      setShippingSettings((prev) => ({ ...prev, ...data }))
+      const next = { ...data }
+      if (isFirebaseConfigured) {
+        await upsertDocument('shippingSettings', 'default', stripUndefined(next))
+      }
+      setShippingSettings((prev) => ({ ...prev, ...next }))
       pushToast('Shipping settings saved')
     },
     [pushToast],
@@ -889,8 +1014,14 @@ export function AdminStoreProvider({ children }) {
 
   const saveTaxSettings = useCallback(
     async (data) => {
-      await delay(300)
-      setTaxSettings((prev) => ({ ...prev, ...data }))
+      const next = {
+        ...data,
+        defaultRate: Number(data.defaultRate) || 0,
+      }
+      if (isFirebaseConfigured) {
+        await upsertDocument('taxSettings', 'default', stripUndefined(next))
+      }
+      setTaxSettings((prev) => ({ ...prev, ...next }))
       pushToast('Tax settings saved')
     },
     [pushToast],

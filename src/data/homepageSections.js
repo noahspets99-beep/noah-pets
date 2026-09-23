@@ -9,7 +9,7 @@ export const homepageSections = [
     sortOrder: 1,
     config: {
       headline: "Noah's Pets",
-      subheadline: 'Premium pet care delivered across Tamil Nadu',
+      subheadline: 'Premium pet care — we deliver across India',
       ctaLabel: 'Shop now',
       ctaHref: '/shop',
       secondaryCtaLabel: 'Shop by pet',
@@ -184,7 +184,7 @@ export const homepageSections = [
     sortOrder: 15,
     config: {
       points: [
-        { title: 'TN-focused delivery', text: 'Chennai, Coimbatore, Madurai & more' },
+        { title: 'Delivery across India', text: 'Doorstep delivery nationwide' },
         { title: 'Genuine brands', text: 'Pedigree, Royal Canin, Whiskas & house labels' },
         { title: 'GST invoices', text: 'Transparent pricing in INR' },
         { title: 'Pet-care guidance', text: 'Guides for food, litter & grooming' },
@@ -194,13 +194,13 @@ export const homepageSections = [
   {
     id: 'hs-delivery',
     key: 'deliveryTN',
-    title: 'Delivery Across Tamil Nadu',
+    title: 'Delivery Across India',
     enabled: true,
     sortOrder: 16,
     config: {
       cities: ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli'],
       freeShippingMin: 999,
-      etaText: '2–5 business days across Tamil Nadu',
+      etaText: '2–5 business days across India',
     },
   },
   {

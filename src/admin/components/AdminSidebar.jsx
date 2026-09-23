@@ -94,6 +94,7 @@ function NavItems({ collapsed, onNavigate, onLogout }) {
               <li key={to}>
                 <NavLink
                   to={to}
+                  end={to === '/admin/dashboard' || to === '/admin/products'}
                   onClick={onNavigate}
                   title={collapsed ? label : undefined}
                   className={({ isActive }) =>

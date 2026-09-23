@@ -17,7 +17,7 @@ export default function NewArrivalsSection() {
         <SectionHeader
           eyebrow="Just landed"
           title="New Arrivals"
-          subtitle="Fresh stock for Tamil Nadu pet parents — food, toys and everyday essentials."
+          subtitle="Fresh stock for pet parents across India — food, toys and everyday essentials."
           action={
             <Link
               to="/products/dogs"

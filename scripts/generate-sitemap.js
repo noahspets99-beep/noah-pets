@@ -28,6 +28,8 @@ const today = new Date().toISOString().slice(0, 10)
 
 const staticRoutes = [
   { loc: '/', priority: '1.0', changefreq: 'daily' },
+  { loc: '/shop', priority: '0.9', changefreq: 'daily' },
+  { loc: '/offers', priority: '0.8', changefreq: 'weekly' },
   { loc: '/about', priority: '0.6', changefreq: 'monthly' },
   { loc: '/contact', priority: '0.7', changefreq: 'monthly' },
   { loc: '/shipping', priority: '0.5', changefreq: 'monthly' },

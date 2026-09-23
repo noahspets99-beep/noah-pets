@@ -9,6 +9,49 @@ import Modal from '../../admin/components/Modal'
 import { formatDate, formatINR, paginate } from '../../admin/utils'
 import { useAdminStore } from '../../context/AdminStore'
 
+function customerInitials(name) {
+  const parts = String(name || 'C')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!parts.length) return 'C'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase()
+}
+
+function CustomerAvatar({ customer, className }) {
+  if (customer?.avatar) {
+    return (
+      <img
+        src={customer.avatar}
+        alt=""
+        className={`${className} object-cover ring-2 ring-line`}
+      />
+    )
+  }
+  return (
+    <span
+      className={`${className} inline-flex items-center justify-center bg-brand-50 text-xs font-bold text-brand-700 ring-2 ring-line`}
+      aria-hidden="true"
+    >
+      {customerInitials(customer?.name)}
+    </span>
+  )
+}
+
+function formatAddress(address) {
+  if (!address || typeof address !== 'object') return null
+  const line1 = address.line1 || address.address || ''
+  const line2 = address.line2 || address.area || ''
+  const city = address.city || ''
+  const state = address.state || ''
+  const pincode = address.pincode || ''
+  const parts = [line1, line2, [city, state, pincode].filter(Boolean).join(', ')].filter(
+    Boolean,
+  )
+  return parts.length ? parts : null
+}
+
 export default function CustomersPage() {
   const { customers, orders } = useAdminStore()
   const [search, setSearch] = useState('')
@@ -21,7 +64,7 @@ export default function CustomersPage() {
     return customers.filter((c) => {
       const name = String(c.name || '').toLowerCase()
       const email = String(c.email || '').toLowerCase()
-      const phone = String(c.phone || '').replace(/\s/g, '')
+      const phone = String(c.phone || c.mobile || '').replace(/\s/g, '')
       return (
         name.includes(q) ||
         email.includes(q) ||
@@ -34,16 +77,21 @@ export default function CustomersPage() {
 
   const customerOrders = useMemo(() => {
     if (!selected) return []
+    const email = selected.email?.toLowerCase()
     return orders
       .filter(
         (o) =>
           o.customer?.id === selected.id ||
           o.customerId === selected.id ||
-          o.customer?.email?.toLowerCase() === selected.email?.toLowerCase(),
+          (email &&
+            (o.customer?.email?.toLowerCase() === email ||
+              o.shippingAddress?.email?.toLowerCase() === email)),
       )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5)
   }, [orders, selected])
+
+  const selectedAddress = formatAddress(selected?.address)
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -103,28 +151,31 @@ export default function CustomersPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={c.avatar}
-                          alt=""
-                          className="h-9 w-9 rounded-full object-cover ring-2 ring-line"
+                        <CustomerAvatar
+                          customer={c}
+                          className="h-9 w-9 rounded-full"
                         />
-                        <span className="font-semibold text-ink">{c.name}</span>
+                        <span className="font-semibold text-ink">
+                          {c.name || 'Customer'}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted">{c.email}</td>
-                    <td className="px-4 py-3 text-muted">{c.phone}</td>
-                    <td className="px-4 py-3 font-semibold">{c.orders}</td>
+                    <td className="px-4 py-3 text-muted">{c.email || '—'}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {c.phone || c.mobile || '—'}
+                    </td>
+                    <td className="px-4 py-3 font-semibold">{c.orders ?? 0}</td>
                     <td className="px-4 py-3 font-semibold">
-                      {formatINR(c.totalSpent)}
+                      {formatINR(c.totalSpent || 0)}
                     </td>
                     <td className="px-4 py-3 text-muted">
-                      {formatDate(c.lastOrderAt)}
+                      {c.lastOrderAt ? formatDate(c.lastOrderAt) : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={c.status} />
+                      <StatusBadge status={c.status || 'Active'} />
                     </td>
                     <td className="px-4 py-3 text-muted">
-                      {formatDate(c.joinedAt)}
+                      {c.joinedAt ? formatDate(c.joinedAt) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -143,36 +194,45 @@ export default function CustomersPage() {
                 className="cursor-pointer rounded-2xl border border-line bg-white p-4 shadow-card transition hover:border-brand-200"
               >
                 <div className="flex items-center gap-3">
-                  <img
-                    src={c.avatar}
-                    alt=""
-                    className="h-12 w-12 rounded-full object-cover ring-2 ring-line"
+                  <CustomerAvatar
+                    customer={c}
+                    className="h-12 w-12 rounded-full"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-bold text-ink">{c.name}</p>
-                      <StatusBadge status={c.status} />
+                      <p className="font-bold text-ink">{c.name || 'Customer'}</p>
+                      <StatusBadge status={c.status || 'Active'} />
                     </div>
-                    <p className="truncate text-sm text-muted">{c.email}</p>
-                    <p className="text-sm text-muted">{c.phone}</p>
+                    <p className="truncate text-sm text-muted">
+                      {c.email || '—'}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {c.phone || c.mobile || '—'}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-xs text-muted">Orders</p>
-                    <p className="font-semibold">{c.orders}</p>
+                    <p className="font-semibold">{c.orders ?? 0}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Total Spent</p>
-                    <p className="font-semibold">{formatINR(c.totalSpent)}</p>
+                    <p className="font-semibold">
+                      {formatINR(c.totalSpent || 0)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Last Order</p>
-                    <p className="font-semibold">{formatDate(c.lastOrderAt)}</p>
+                    <p className="font-semibold">
+                      {c.lastOrderAt ? formatDate(c.lastOrderAt) : '—'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Joined</p>
-                    <p className="font-semibold">{formatDate(c.joinedAt)}</p>
+                    <p className="font-semibold">
+                      {c.joinedAt ? formatDate(c.joinedAt) : '—'}
+                    </p>
                   </div>
                 </div>
               </article>
@@ -186,7 +246,7 @@ export default function CustomersPage() {
       <Modal
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected?.name ?? 'Customer'}
+        title={selected?.name || 'Customer'}
         size="lg"
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -203,48 +263,64 @@ export default function CustomersPage() {
         {selected && (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <img
-                src={selected.avatar}
-                alt=""
-                className="h-16 w-16 rounded-2xl object-cover ring-2 ring-line"
+              <CustomerAvatar
+                customer={selected}
+                className="h-16 w-16 rounded-2xl"
               />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-bold text-ink">{selected.name}</h3>
-                  <StatusBadge status={selected.status} />
+                  <h3 className="text-lg font-bold text-ink">
+                    {selected.name || 'Customer'}
+                  </h3>
+                  <StatusBadge status={selected.status || 'Active'} />
                 </div>
-                <p className="text-sm text-muted">{selected.email}</p>
-                <p className="text-sm text-muted">{selected.phone}</p>
+                <p className="text-sm text-muted">{selected.email || '—'}</p>
+                <p className="text-sm text-muted">
+                  {selected.phone || selected.mobile || '—'}
+                </p>
+                {selected.id ? (
+                  <p className="mt-1 text-xs text-muted">ID: {selected.id}</p>
+                ) : null}
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-surface p-3">
                 <p className="text-xs text-muted">Orders</p>
-                <p className="text-lg font-bold text-ink">{selected.orders}</p>
+                <p className="text-lg font-bold text-ink">
+                  {selected.orders ?? customerOrders.length}
+                </p>
               </div>
               <div className="rounded-xl bg-surface p-3">
                 <p className="text-xs text-muted">Total Spent</p>
                 <p className="text-lg font-bold text-ink">
-                  {formatINR(selected.totalSpent)}
+                  {formatINR(selected.totalSpent || 0)}
                 </p>
               </div>
               <div className="rounded-xl bg-surface p-3">
                 <p className="text-xs text-muted">Member Since</p>
                 <p className="text-lg font-bold text-ink">
-                  {formatDate(selected.joinedAt)}
+                  {selected.joinedAt ? formatDate(selected.joinedAt) : '—'}
                 </p>
               </div>
             </div>
 
             <div>
               <h4 className="mb-2 text-sm font-bold text-ink">Address</h4>
-              <p className="rounded-xl border border-line bg-surface/60 p-3 text-sm text-ink-soft">
-                {selected.address.line1}
-                <br />
-                {selected.address.city}, {selected.address.state}{' '}
-                {selected.address.pincode}
-              </p>
+              {selectedAddress ? (
+                <p className="rounded-xl border border-line bg-surface/60 p-3 text-sm text-ink-soft">
+                  {selectedAddress.map((line, i) => (
+                    <span key={i}>
+                      {line}
+                      {i < selectedAddress.length - 1 ? <br /> : null}
+                    </span>
+                  ))}
+                </p>
+              ) : (
+                <p className="rounded-xl border border-line bg-surface/60 p-3 text-sm text-muted">
+                  No address on file.
+                </p>
+              )}
             </div>
 
             <div>

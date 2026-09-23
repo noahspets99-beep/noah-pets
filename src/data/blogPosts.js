@@ -12,7 +12,7 @@ export const blogPosts = [
 <p><strong>Read the label, not just the brand.</strong> Look for named proteins (chicken, fish), a clear feeding chart, and AAFCO-style complete &amp; balanced claims. Popular India options include Pedigree Puppy, Drools Puppy, PawNutrition starter lines, and Royal Canin breed/size puppy ranges.</p>
 <p><strong>Pack sizes that make sense in TN heat.</strong> Buy what you can finish in 4–6 weeks after opening. 1kg and 3kg packs suit apartments; 5–10kg bags work if you store them airtight away from humidity.</p>
 <p><strong>Transition slowly.</strong> Mix old and new food over 7 days. Fresh water must always be available — Chennai summers dehydrate pups quickly.</p>
-<p>Shop puppy food on Noah's Pets with GST invoice and doorstep delivery across Tamil Nadu.</p>`,
+<p>Shop puppy food on Noah's Pets with GST invoice and doorstep delivery across India.</p>`,
     featuredImage:
       'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=1200&h=630&fit=crop',
     category: 'Nutrition',
@@ -69,7 +69,7 @@ export const blogPosts = [
     slug: 'pet-food-brands-tamil-nadu',
     title: 'Best Pet Food Brands Available in Tamil Nadu',
     excerpt:
-      'A local buyer’s map of Pedigree, Drools, Royal Canin, Farmina, Whiskas, and homegrown favourites you can order online with TN delivery.',
+      'A local buyer’s map of Pedigree, Drools, Royal Canin, Farmina, Whiskas, and homegrown favourites you can order online with delivery across India.',
     content: `<p>Tamil Nadu pet parents now expect the same brand depth as metro India — without waiting weeks for stock.</p>
 <p><strong>Value everyday nutrition:</strong> Pedigree and Drools cover puppies and adults with widely available 1–10kg packs.</p>
 <p><strong>Premium &amp; veterinary lines:</strong> Royal Canin and Farmina suit owners who want size-specific or grain-free formulas.</p>
@@ -85,7 +85,7 @@ export const blogPosts = [
     seo: {
       title: 'Pet Food Brands Tamil Nadu | Noah\'s Pets',
       description:
-        'Compare Pedigree, Drools, Royal Canin, Farmina, Whiskas and more available for delivery in Tamil Nadu.',
+        'Compare Pedigree, Drools, Royal Canin, Farmina, Whiskas and more — we deliver across India.',
       keywords: 'pet food brands Tamil Nadu, buy dog food Chennai, Drools Coimbatore',
     },
     relatedCategorySlugs: ['dog-food', 'cat-food', 'dogs', 'cats'],
@@ -107,7 +107,7 @@ export const blogPosts = [
 <p><strong>Shedding season:</strong> A deshedding brush 2–3 times a week cuts loose undercoat before it fills your sofa.</p>
 <p><strong>Monsoon ticks:</strong> Check ears, paws, and belly after park walks. Pair grooming with vet-approved tick care (e.g. Himalaya Erina range) as advised.</p>
 <p><strong>Ears &amp; paws:</strong> Wipe after rainy walks. Keep nails trimmed — tiled Chennai floors are slippery for long-nailed dogs.</p>
-<p>Stock shampoo, brushes, and tick-care essentials on Noah's Pets with fast TN shipping.</p>`,
+<p>Stock shampoo, brushes, and tick-care essentials on Noah's Pets — we deliver across India.</p>`,
     featuredImage:
       'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=1200&h=630&fit=crop',
     category: 'Grooming',
@@ -138,7 +138,7 @@ export const blogPosts = [
 <p><strong>Low dust matters.</strong> Dusty litter irritates cats and humans — especially with AC recirculation. Choose “low dust” labelled packs.</p>
 <p><strong>Depth:</strong> Keep 5–7 cm in the tray so cats can dig. One cat typically needs one tray (plus one extra if possible).</p>
 <p><strong>Scented vs unscented:</strong> Many cats prefer unscented. Strong perfumes can drive them away from the box.</p>
-<p>Try CleanPaws clumping litter on Noah's Pets — 5L and 10L packs with Tamil Nadu delivery.</p>`,
+<p>Try CleanPaws clumping litter on Noah's Pets — 5L and 10L packs with delivery across India.</p>`,
     featuredImage:
       'https://images.unsplash.com/photo-1543852786-1cf6624b998d?w=1200&h=630&fit=crop',
     category: 'Cat Care',
@@ -169,7 +169,7 @@ export const blogPosts = [
 <p><strong>Hydration:</strong> Multiple water bowls, wet food for cats, and shade for outdoor time. Never leave pets in parked vehicles.</p>
 <p><strong>Monsoon:</strong> Paw wipes, tick checks, and dry bedding matter. Elevated bowls and washable beds reduce damp smell indoors.</p>
 <p><strong>AC homes:</strong> Small dogs may need a light fleece on strong AC nights; cats often seek warm cave beds.</p>
-<p>Build your weather-ready kit — food, grooming, beds, and litter — on Noah's Pets with reliable TN delivery.</p>`,
+<p>Build your weather-ready kit — food, grooming, beds, and litter — on Noah's Pets with delivery across India.</p>`,
     featuredImage:
       'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1200&h=630&fit=crop',
     category: 'Seasonal Care',

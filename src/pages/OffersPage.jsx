@@ -11,7 +11,7 @@ export default function OffersPage() {
     <>
       <SeoHead
         title="Offers & Deals"
-        description="Limited season offers and discounted pet essentials at Noah's Pets."
+        description="Limited season offers and discounted pet essentials at Noah's Pets. We deliver across India."
         canonical="/offers"
       />
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10">

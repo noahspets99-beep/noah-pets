@@ -3,6 +3,10 @@ import { formatPrice } from '../data/products'
 import { useShop } from '../context/useShop'
 import SeoHead from '../components/seo/SeoHead'
 import NotFoundPage from './NotFoundPage'
+import {
+  buildOrderTimeline,
+  normalizeOrderStatus,
+} from '../lib/orderStatus'
 
 export default function OrderDetailPage() {
   const { id } = useParams()
@@ -10,6 +14,19 @@ export default function OrderDetailPage() {
   const order = getOrderById(id)
 
   if (!order) return <NotFoundPage />
+
+  const displayStatus = normalizeOrderStatus(order.status)
+  const timeline =
+    Array.isArray(order.timeline) &&
+    order.timeline.length &&
+    order.timeline.every((s) =>
+      ['Pending', 'Confirmed', 'Delivered', 'Cancelled'].includes(s.label),
+    )
+      ? order.timeline
+      : buildOrderTimeline(displayStatus, {
+          createdAt: order.createdAt,
+          paymentPaidAt: order.verifiedAt,
+        })
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -30,10 +47,7 @@ export default function OrderDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              {order.status}
-            </span>
-            <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-ink">
-              Payment: {order.paymentStatus}
+              {displayStatus}
             </span>
           </div>
         </div>
@@ -43,7 +57,7 @@ export default function OrderDetailPage() {
             Track status
           </h2>
           <ol className="mt-4 space-y-3">
-            {(order.timeline || []).map((step) => (
+            {timeline.map((step) => (
               <li key={step.label} className="flex items-start gap-3">
                 <span
                   className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${

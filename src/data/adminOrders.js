@@ -372,11 +372,6 @@ export const initialAdminOrders = [
 export const ORDER_STATUSES = [
   'Pending',
   'Confirmed',
-  'Processing',
-  'Shipped',
-  'Out for Delivery',
   'Delivered',
   'Cancelled',
-  'Returned',
-  'Refunded',
 ]

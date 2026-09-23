@@ -17,13 +17,13 @@ const titles = {
   '/admin/inventory': 'Inventory',
   '/admin/reviews': 'Reviews',
   '/admin/coupons': 'Coupons',
-  '/admin/offers': 'Offers',
   '/admin/banners': 'Banners',
   '/admin/payments': 'Payments',
   '/admin/blog': 'Blog',
   '/admin/settings': 'Settings',
   '/admin/seo': 'SEO',
   '/admin/shipping': 'Shipping',
+  '/admin/reports': 'Reports',
   '/admin/homepage': 'Homepage',
 }
 

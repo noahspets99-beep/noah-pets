@@ -9,8 +9,8 @@ export default function ContactPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title="Contact Us | Pet Shop Tamil Nadu"
-        description="Contact Noah's Pets in Chennai for orders, delivery queries and pet product help across Tamil Nadu."
+        title="Contact Us | Noah's Pets"
+        description="Contact Noah's Pets in Chennai for orders, delivery queries and pet product help. We deliver across India."
         canonical="/contact"
       />
       <JsonLd data={localBusinessSchema()} />
@@ -123,10 +123,10 @@ export default function ContactPage() {
 
       <section className="mt-12">
         <h2 className="text-xl font-extrabold text-ink">
-          Service areas in Tamil Nadu
+          We deliver across India
         </h2>
         <p className="mt-2 text-sm text-muted">
-          We ship to these cities and many surrounding towns.
+          Major cities we commonly ship to — and many more across the country.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {TN_SERVICE_AREAS.map((city) => (

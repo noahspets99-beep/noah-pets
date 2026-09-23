@@ -12,13 +12,8 @@ const STATUS_TABS = [
   { key: 'All', match: () => true },
   { key: 'Pending', match: (o) => o.status === 'Pending' },
   { key: 'Confirmed', match: (o) => o.status === 'Confirmed' },
-  { key: 'Processing', match: (o) => o.status === 'Processing' },
-  { key: 'Shipped', match: (o) => o.status === 'Shipped' },
-  { key: 'Out for Delivery', match: (o) => o.status === 'Out for Delivery' },
   { key: 'Delivered', match: (o) => o.status === 'Delivered' },
   { key: 'Cancelled', match: (o) => o.status === 'Cancelled' },
-  { key: 'Returned', match: (o) => o.status === 'Returned' },
-  { key: 'Refunded', match: (o) => o.status === 'Refunded' },
 ]
 
 const PAYMENT_FILTERS = ['All', 'Paid', 'Pending', 'Refunded']

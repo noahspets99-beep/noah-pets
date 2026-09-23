@@ -17,7 +17,7 @@ export default function FaqSection({ limit = 6 }) {
         <SectionHeader
           eyebrow="Help"
           title="Frequently Asked Questions"
-          subtitle="Delivery, returns, GST invoices and stock — answered for Tamil Nadu shoppers."
+          subtitle="Delivery, returns, GST invoices and stock — answered for shoppers across India."
           action={
             <Link
               to="/faq"

@@ -93,10 +93,10 @@ export default function CategoryPage() {
   }
 
   const seoTitle =
-    category?.seo?.title || `${title} Online Tamil Nadu | Noah's Pets`
+    category?.seo?.title || `${title} Online | Noah's Pets`
   const seoDesc =
     category?.seo?.description ||
-    `Shop ${title} online with delivery across Tamil Nadu. GST invoice & trusted brands.`
+    `Shop ${title} online with delivery across India. GST invoice & trusted brands.`
   const crumbItems = [
     { name: 'Home', to: '/', url: absoluteUrl('/') },
     { name: title, to: `/products/${categorySlug}`, url: absoluteUrl(`/products/${categorySlug}`) },
@@ -123,7 +123,7 @@ export default function CategoryPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
           {category?.description ||
-            `Browse ${title} products with doorstep delivery across Tamil Nadu.`}
+            `Browse ${title} products with doorstep delivery across India.`}
         </p>
       </header>
 

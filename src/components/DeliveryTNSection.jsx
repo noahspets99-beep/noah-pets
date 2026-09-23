@@ -9,8 +9,8 @@ export default function DeliveryTNSection() {
     <section className="bg-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
-          eyebrow="Tamil Nadu delivery"
-          title="We Deliver Across TN"
+          eyebrow="Delivery across India"
+          title="We deliver across India"
           subtitle={`Free shipping on orders ₹${shippingSettings.freeShippingMinOrder}+ · Standard ETA ${shippingSettings.standardEtaDays} business days.`}
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

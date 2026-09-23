@@ -19,8 +19,8 @@ export default function ShopPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title="Shop Pet Products | Noah's Pets"
-        description="Browse all pet products available at Noah's Pets — food, toys, accessories and more."
+        title="Shop Pet Products"
+        description="Browse all pet products at Noah's Pets — food, toys, accessories and more. We deliver across India."
         canonical="/shop"
       />
 

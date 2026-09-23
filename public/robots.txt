@@ -11,7 +11,4 @@ Disallow: /account
 Disallow: /orders
 Disallow: /wishlist
 
-# Prefer HTTPS canonical host when live
-# Host: https://noahspets.com
-
 Sitemap: https://noahspets.com/sitemap.xml

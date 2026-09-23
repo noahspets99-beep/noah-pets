@@ -16,8 +16,8 @@ export default function LocationPage() {
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
         title={`Pet Supplies Delivery in ${city.name} | Noah's Pets`}
-        description={`Buy dog food, cat products and pet accessories online with delivery in ${city.name}, Tamil Nadu. ${city.highlights}`}
-        keywords={`pet shop ${city.name}, dog food ${city.name}, pet delivery Tamil Nadu`}
+        description={`Buy dog food, cat products and pet accessories online with delivery in ${city.name}. ${city.highlights} We deliver across India.`}
+        keywords={`pet shop ${city.name}, dog food ${city.name}, pet delivery India, Noah's Pets`}
         canonical={`/locations/${city.slug}`}
       />
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
@@ -52,7 +52,7 @@ export default function LocationPage() {
 
       <div className="mt-10 rounded-2xl border border-line bg-surface p-5">
         <p className="text-sm text-ink-soft">
-          Serving other Tamil Nadu cities too?{' '}
+          We deliver across India.{' '}
           <Link to="/contact" className="font-semibold text-brand-600">
             Contact us
           </Link>{' '}

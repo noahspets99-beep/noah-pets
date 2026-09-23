@@ -133,18 +133,28 @@ export default function ProductDetailPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title={product.seo?.title || product.name}
+        title={
+          product.seo?.title ||
+          (product.brand
+            ? `${product.name} | ${product.brand}`
+            : product.name)
+        }
         description={
           product.seo?.description ||
           product.shortDescription ||
-          product.description
+          product.description ||
+          `Buy ${product.name} online at Noah's Pets. We deliver across India.`
         }
         keywords={product.seo?.keywords || product.keywords?.join(', ')}
         canonical={`/product/${product.slug}`}
         ogType="product"
         ogImage={product.image}
-        ogTitle={product.seo?.ogTitle}
-        ogDescription={product.seo?.ogDescription}
+        ogTitle={product.seo?.ogTitle || product.name}
+        ogDescription={
+          product.seo?.ogDescription ||
+          product.shortDescription ||
+          product.description
+        }
       />
       <JsonLd
         data={[

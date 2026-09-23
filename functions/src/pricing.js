@@ -10,7 +10,9 @@ const catalogPrices = JSON.parse(
 
 const FREE_SHIPPING_MIN = 999
 const STANDARD_SHIPPING_FEE = 49
-const TAX_RATE = 5
+const DEFAULT_TAX_RATE = 0
+
+let taxRateCache = { at: 0, rate: DEFAULT_TAX_RATE }
 
 function firestoreProjectId() {
   return process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'noahpets'
@@ -222,7 +224,48 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
   }
 }
 
-export function calculateTotals(lineItems, couponCode, couponDoc = null) {
+
+async function fetchPublicTaxSettings() {
+  const projectId = firestoreProjectId()
+  const url = withApiKey(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/taxSettings/default`,
+  )
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return decodeFirestoreDocument(await res.json())
+  } catch (err) {
+    console.warn('[payments] Public taxSettings lookup failed', err?.message || err)
+    return null
+  }
+}
+
+export async function resolveTaxRate(db) {
+  if (taxRateCache.at && Date.now() - taxRateCache.at < 30_000) {
+    return taxRateCache.rate
+  }
+  let rate = DEFAULT_TAX_RATE
+  if (db) {
+    try {
+      const snap = await db.collection('taxSettings').doc('default').get()
+      if (snap.exists) {
+        rate = Number(snap.data()?.defaultRate) || 0
+      }
+    } catch (err) {
+      console.warn('[payments] Admin taxSettings lookup failed', err?.message || err)
+      const publicDoc = await fetchPublicTaxSettings()
+      if (publicDoc) rate = Number(publicDoc.defaultRate) || 0
+    }
+  } else {
+    const publicDoc = await fetchPublicTaxSettings()
+    if (publicDoc) rate = Number(publicDoc.defaultRate) || 0
+  }
+  if (!Number.isFinite(rate) || rate < 0) rate = 0
+  taxRateCache = { at: Date.now(), rate }
+  return rate
+}
+
+export function calculateTotals(lineItems, couponCode, couponDoc = null, options = {}) {
   const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0)
   let discount = 0
   let appliedCoupon = null
@@ -271,7 +314,10 @@ export function calculateTotals(lineItems, couponCode, couponDoc = null) {
 
   const taxable = Math.max(0, subtotal - discount)
   const shipping = taxable >= FREE_SHIPPING_MIN ? 0 : STANDARD_SHIPPING_FEE
-  const tax = Math.round((taxable * TAX_RATE) / 100)
+  const taxRate = Number(options.taxRate)
+  const safeRate =
+    Number.isFinite(taxRate) && taxRate > 0 ? taxRate : DEFAULT_TAX_RATE
+  const tax = Math.round((taxable * safeRate) / 100)
   const total = Math.max(0, taxable + shipping + tax)
 
   return {

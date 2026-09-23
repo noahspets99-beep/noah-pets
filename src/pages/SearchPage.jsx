@@ -36,9 +36,9 @@ function SearchInner({ initialQ }) {
         title={
           emptyQuery
             ? 'Search Pet Products'
-            : `Search: ${debounced} | Pet Products Tamil Nadu`
+            : `Search: ${debounced}`
         }
-        description="Search dog food, cat food, toys and pet supplies for delivery across Tamil Nadu."
+        description="Search dog food, cat food, toys and pet supplies. We deliver across India."
         canonical="/search"
         noindex={emptyQuery}
       />

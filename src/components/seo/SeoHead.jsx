@@ -20,7 +20,11 @@ export default function SeoHead({
       : `${title} | ${STORE.name}`
     : DEFAULT_SEO.defaultTitle
   const url = absoluteUrl(canonical || '/')
-  const image = ogImage || absoluteUrl('/image.jpeg')
+  const image = ogImage
+    ? ogImage.startsWith('http')
+      ? ogImage
+      : absoluteUrl(ogImage)
+    : absoluteUrl(DEFAULT_SEO.ogImage || '/image.jpeg')
 
   return (
     <Helmet>
@@ -32,7 +36,7 @@ export default function SeoHead({
       {noindex ? (
         <meta name="robots" content="noindex, nofollow" />
       ) : (
-        <meta name="robots" content="index, follow" />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
       )}
       <meta property="og:site_name" content={STORE.name} />
       <meta property="og:type" content={ogType} />
@@ -45,8 +49,8 @@ export default function SeoHead({
       <meta name="twitter:title" content={ogTitle || fullTitle} />
       <meta name="twitter:description" content={ogDescription || description} />
       <meta name="twitter:image" content={image} />
-      <meta name="geo.region" content="IN-TN" />
-      <meta name="geo.placename" content="Tamil Nadu" />
+      <meta name="geo.region" content="IN" />
+      <meta name="geo.placename" content="India" />
     </Helmet>
   )
 }

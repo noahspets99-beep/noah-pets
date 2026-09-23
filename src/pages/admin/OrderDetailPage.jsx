@@ -12,7 +12,7 @@ import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
 import Modal from '../../admin/components/Modal'
 import { formatDateTime, formatINR } from '../../admin/utils'
-import { ORDER_STATUSES } from '../../data/adminOrders'
+import { ORDER_STATUSES } from '../../lib/orderStatus'
 import { useAdminStore } from '../../context/AdminStore'
 
 export default function OrderDetailPage() {
@@ -149,7 +149,7 @@ export default function OrderDetailPage() {
           <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
             <h2 className="text-lg font-bold text-ink">Order Timeline</h2>
             <ol className="mt-5 space-y-4">
-              {order.timeline.map((step) => (
+              {(order.timeline || []).map((step) => (
                 <li key={step.label} className="flex gap-3">
                   {step.done ? (
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />

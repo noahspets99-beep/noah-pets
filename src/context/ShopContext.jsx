@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
-import { shippingSettings, taxSettings } from '../data/shippingTax'
+import { shippingSettings } from '../data/shippingTax'
 import { decreaseStockForCartItems } from '../services/inventoryService'
 import { invalidateCatalogCache } from './CatalogProvider'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
@@ -11,7 +11,12 @@ import {
   fsQuery,
   isFirebaseConfigured,
   patchDocument,
+  getDocument,
 } from '../services/firestore/repository'
+import {
+  buildOrderTimeline,
+  normalizeOrderStatus,
+} from '../lib/orderStatus'
 
 const CART_KEY = 'noah_cart_v1'
 const WISHLIST_KEY = 'noah_wishlist_v1'
@@ -31,8 +36,10 @@ function cartLineKey(item) {
   return `${item.id}::${item.variantId || 'default'}`
 }
 
-function calcTax(subtotal) {
-  return Math.round((subtotal * (taxSettings.defaultRate || 5)) / 100)
+function calcTax(subtotal, ratePercent) {
+  const rate = Number(ratePercent)
+  if (!Number.isFinite(rate) || rate <= 0) return 0
+  return Math.round((subtotal * rate) / 100)
 }
 
 function calcShipping(subtotal) {
@@ -49,6 +56,8 @@ export function ShopProvider({ children }) {
   const [appliedCoupon, setAppliedCoupon] = useState(() =>
     loadJson(COUPON_KEY, null),
   )
+  /** Admin-configured tax % from Firestore; default 0 until loaded/configured */
+  const [taxRatePercent, setTaxRatePercent] = useState(0)
   const [toast, setToast] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -74,6 +83,37 @@ export function ShopProvider({ children }) {
     }
   }, [appliedCoupon])
 
+  // Live tax rate from Admin → Shipping & Tax (Firestore taxSettings/default)
+  useEffect(() => {
+    let cancelled = false
+    async function loadTax() {
+      if (!isFirebaseConfigured) {
+        setTaxRatePercent(0)
+        return
+      }
+      try {
+        const res = await getDocument('taxSettings', 'default')
+        if (cancelled) return
+        if (res.mode === 'firestore' && res.data) {
+          setTaxRatePercent(Number(res.data.defaultRate) || 0)
+        } else {
+          setTaxRatePercent(0)
+        }
+      } catch {
+        if (!cancelled) setTaxRatePercent(0)
+      }
+    }
+    loadTax()
+    const onFocus = () => loadTax()
+    window.addEventListener('focus', onFocus)
+    const interval = setInterval(loadTax, 60_000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      clearInterval(interval)
+    }
+  }, [])
+
   // Merge authenticated customer's Firestore orders (status updates from admin)
   useEffect(() => {
     let cancelled = false
@@ -92,7 +132,11 @@ export function ShopProvider({ children }) {
           for (const o of local) byId.set(o.id, o)
           for (const o of remote) {
             const prev = byId.get(o.id)
-            byId.set(o.id, prev ? { ...prev, ...o } : o)
+            const merged = prev ? { ...prev, ...o } : o
+            byId.set(o.id, {
+              ...merged,
+              status: normalizeOrderStatus(merged.status),
+            })
           }
           return [...byId.values()].sort(
             (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
@@ -289,8 +333,8 @@ export function ShopProvider({ children }) {
   )
 
   const tax = useMemo(
-    () => calcTax(Math.max(0, cartSubtotal - couponDiscount)),
-    [cartSubtotal, couponDiscount],
+    () => calcTax(Math.max(0, cartSubtotal - couponDiscount), taxRatePercent),
+    [cartSubtotal, couponDiscount, taxRatePercent],
   )
 
   const cartTotal = useMemo(
@@ -350,25 +394,17 @@ export function ShopProvider({ children }) {
         tax,
         total: cartTotal,
         coupon: appliedCoupon?.code || null,
-        status: orderPayload.status || 'Pending',
+        status: normalizeOrderStatus(orderPayload.status || 'Pending'),
         paymentStatus: orderPayload.paymentStatus || 'Pending',
         timeline:
           orderPayload.timeline ||
-          [
-            { label: 'Order placed', at: new Date().toISOString(), done: true },
-            {
-              label: 'Payment confirmed',
-              at:
-                orderPayload.paymentStatus === 'Paid'
-                  ? new Date().toISOString()
-                  : null,
-              done: orderPayload.paymentStatus === 'Paid',
-            },
-            { label: 'Order processing', at: null, done: false },
-            { label: 'Shipped', at: null, done: false },
-            { label: 'Out for Delivery', at: null, done: false },
-            { label: 'Delivered', at: null, done: false },
-          ],
+          buildOrderTimeline(orderPayload.status || 'Pending', {
+            createdAt: new Date().toISOString(),
+            paymentPaidAt:
+              orderPayload.paymentStatus === 'Paid'
+                ? new Date().toISOString()
+                : null,
+          }),
       }
       setOrders((prev) => [order, ...prev])
       clearCart()
@@ -404,6 +440,14 @@ export function ShopProvider({ children }) {
       }
       const order = {
         ...serverOrder,
+        status: normalizeOrderStatus(serverOrder.status),
+        timeline:
+          Array.isArray(serverOrder.timeline) && serverOrder.timeline.length
+            ? serverOrder.timeline
+            : buildOrderTimeline(serverOrder.status, {
+                createdAt: serverOrder.createdAt,
+                paymentPaidAt: serverOrder.verifiedAt,
+              }),
         payment: {
           provider: serverOrder.paymentProvider || 'razorpay',
           paymentId: serverOrder.razorpayPaymentId,

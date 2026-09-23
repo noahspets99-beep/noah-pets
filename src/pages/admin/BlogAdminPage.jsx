@@ -163,7 +163,7 @@ export default function BlogAdminPage() {
         <EmptyState
           icon={Newspaper}
           title="No blog posts"
-          description="Create your first guide for Tamil Nadu pet parents."
+          description="Create your first pet care guide."
           action={
             <button
               type="button"

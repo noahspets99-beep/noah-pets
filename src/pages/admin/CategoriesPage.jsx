@@ -32,6 +32,47 @@ const inputClass =
 
 const labelClass = 'mb-1.5 block text-sm font-semibold text-ink'
 
+/** Match products to categories using id, name, slug, or petType (root categories). */
+function productMatchesCategory(product, category) {
+  if (!product || !category) return false
+  const catIds = [
+    product.categoryId,
+    product.categoryDocId,
+    product.categoryRef,
+  ]
+    .filter(Boolean)
+    .map(String)
+  if (catIds.includes(String(category.id))) return true
+
+  const cName = String(category.name || '')
+    .trim()
+    .toLowerCase()
+  const cSlug = String(category.slug || '')
+    .trim()
+    .toLowerCase()
+  const names = [product.category, product.categoryName, product.subcategory]
+    .filter(Boolean)
+    .map((s) => String(s).trim().toLowerCase())
+  const slugs = [product.categorySlug, product.subcategorySlug]
+    .filter(Boolean)
+    .map((s) => String(s).trim().toLowerCase())
+
+  if (cName && names.includes(cName)) return true
+  if (cSlug && slugs.includes(cSlug)) return true
+
+  // Root pet-type categories (e.g. Dogs / Cats): count by petType
+  if (!category.parentId) {
+    const pt = String(product.petType || '')
+      .trim()
+      .toLowerCase()
+    const cPt = String(category.petType || category.name || '')
+      .trim()
+      .toLowerCase()
+    if (pt && cPt && pt === cPt && cPt !== 'all') return true
+  }
+  return false
+}
+
 function CategoryForm({ form, setForm, categories, excludeId, slugManual, setSlugManual }) {
   const parentOptions = categories.filter(
     (c) => c.id !== excludeId && !c.parentId,
@@ -216,7 +257,7 @@ function RowActions({ category, onEdit, onDelete }) {
 }
 
 export default function CategoriesPage() {
-  const { categories, createCategory, updateCategory, deleteCategory } =
+  const { categories, products, createCategory, updateCategory, deleteCategory } =
     useAdminStore()
 
   const [formOpen, setFormOpen] = useState(false)
@@ -225,6 +266,19 @@ export default function CategoriesPage() {
   const [form, setForm] = useState(EMPTY_CATEGORY)
   const [slugManual, setSlugManual] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const productCountByCategoryId = useMemo(() => {
+    const counts = new Map()
+    for (const c of categories) counts.set(c.id, 0)
+    for (const p of products || []) {
+      for (const c of categories) {
+        if (productMatchesCategory(p, c)) {
+          counts.set(c.id, (counts.get(c.id) || 0) + 1)
+        }
+      }
+    }
+    return counts
+  }, [categories, products])
 
   const sorted = useMemo(
     () =>
@@ -366,7 +420,9 @@ export default function CategoriesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted">{c.petType}</td>
-                    <td className="px-4 py-3 font-semibold">{c.productCount}</td>
+                    <td className="px-4 py-3 font-semibold">
+                      {productCountByCategoryId.get(c.id) ?? 0}
+                    </td>
                     <td className="px-4 py-3 text-muted">{parentName(c.parentId)}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
@@ -418,7 +474,9 @@ export default function CategoriesPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted">Products</p>
-                    <p className="font-semibold">{c.productCount}</p>
+                    <p className="font-semibold">
+                      {productCountByCategoryId.get(c.id) ?? 0}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Parent</p>

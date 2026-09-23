@@ -7,7 +7,7 @@ export const initialAdminCategories = [
     slug: 'dogs',
     parentId: null,
     petType: 'Dog',
-    description: 'Food, treats, toys, beds and grooming for dogs across Tamil Nadu.',
+    description: 'Food, treats, toys, beds and grooming for dogs across India.',
     image:
       'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop',
     productCount: 18,

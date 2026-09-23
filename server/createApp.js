@@ -15,6 +15,7 @@ import {
   calculateTotals,
   lookupCouponDoc,
   resolveLineItem,
+  resolveTaxRate,
 } from './pricing.js'
 import {
   createRazorpayOrder,
@@ -57,6 +58,11 @@ async function requireAuthenticatedUid(req) {
     )
   }
   return authUid
+}
+
+/** Optional auth — guests may checkout with accessToken only. */
+async function optionalAuthenticatedUid(req) {
+  return resolveVerifiedUid(req)
 }
 
 async function attachRazorpayOrder(order) {
@@ -244,7 +250,7 @@ export function createApp() {
 
   app.post('/api/orders/pending', async (req, res) => {
     try {
-      const authUid = await requireAuthenticatedUid(req)
+      const authUid = await optionalAuthenticatedUid(req)
       const { items, customer: rawCustomer, shippingAddress, couponCode } =
         req.body || {}
       if (!Array.isArray(items) || items.length === 0) {
@@ -279,7 +285,8 @@ export function createApp() {
       )
 
       const couponDoc = await lookupCouponDoc(db, couponCode)
-      const totals = calculateTotals(lines, couponCode, couponDoc)
+      const taxRate = await resolveTaxRate(db)
+      const totals = calculateTotals(lines, couponCode, couponDoc, { taxRate })
       if (totals.total < 1) {
         throw publicError(400, 'invalid_amount', 'Order total must be at least ₹1.')
       }
@@ -293,7 +300,7 @@ export function createApp() {
         totals,
         customer,
         shippingAddress: shippingAddress || customer,
-        customerId: authUid,
+        customerId: authUid || null,
         writeIdToken,
       })
 
@@ -312,7 +319,7 @@ export function createApp() {
 
   app.post('/api/checkout/razorpay', async (req, res) => {
     try {
-      const authUid = await requireAuthenticatedUid(req)
+      const authUid = await optionalAuthenticatedUid(req)
       const { items, customer: rawCustomer, shippingAddress, couponCode } =
         req.body || {}
       if (!Array.isArray(items) || items.length === 0) {
@@ -347,7 +354,8 @@ export function createApp() {
       )
 
       const couponDoc = await lookupCouponDoc(db, couponCode)
-      const totals = calculateTotals(lines, couponCode, couponDoc)
+      const taxRate = await resolveTaxRate(db)
+      const totals = calculateTotals(lines, couponCode, couponDoc, { taxRate })
       if (totals.total < 1) {
         throw publicError(400, 'invalid_amount', 'Order total must be at least ₹1.')
       }
@@ -361,7 +369,7 @@ export function createApp() {
         totals,
         customer,
         shippingAddress: shippingAddress || customer,
-        customerId: authUid,
+        customerId: authUid || null,
         writeIdToken,
       })
 
@@ -388,7 +396,7 @@ export function createApp() {
       }
 
       const order = await getOrder(orderId)
-      const authUid = await requireAuthenticatedUid(req)
+      const authUid = await optionalAuthenticatedUid(req)
       assertOrderAccess(order, accessToken, authUid)
 
       const checkout = await attachRazorpayOrder(order)
@@ -413,7 +421,7 @@ export function createApp() {
       }
 
       const order = await getOrder(orderId)
-      const authUid = await requireAuthenticatedUid(req)
+      const authUid = await optionalAuthenticatedUid(req)
       assertOrderAccess(order, accessToken, authUid)
       const writeIdToken = req.headers.authorization?.startsWith('Bearer ')
         ? req.headers.authorization.slice(7).trim()

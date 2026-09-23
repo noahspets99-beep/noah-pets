@@ -38,7 +38,6 @@ export default function CheckoutPage() {
     cartSubtotal,
     couponDiscount,
     shipping,
-    tax,
     cartTotal,
     appliedCoupon,
     applyCoupon,
@@ -93,26 +92,19 @@ export default function CheckoutPage() {
     return null
   }
 
-  const goSignInForPayment = () => {
-    saveCheckoutDraft(form)
-    showToast('Sign in to continue with payment', 'info')
-    navigate('/account', {
-      state: {
-        next: '/checkout',
-        authMessage: 'Sign in to complete your payment.',
-      },
-    })
+  const getOptionalIdToken = async () => {
+    if (!isAuthenticated || !user) return null
+    try {
+      return await user.getIdToken()
+    } catch {
+      return null
+    }
   }
 
   const payAndPlace = async (e) => {
     e.preventDefault()
     if (cart.length === 0) {
       showToast('Your cart is empty', 'error')
-      return
-    }
-    if (!authReady) return
-    if (!isAuthenticated || !user) {
-      goSignInForPayment()
       return
     }
     const err = validate()
@@ -131,8 +123,6 @@ export default function CheckoutPage() {
     } catch (error) {
       if (error?.code === 'cancelled') {
         showToast('Payment cancelled — your order was not charged', 'info')
-      } else if (error?.status === 401 || error?.code === 'unauthorized') {
-        goSignInForPayment()
       } else if (error?.name === 'AbortError' || error?.code === 'start_timeout') {
         showToast('Payment could not be started. Please try again.', 'error')
       } else {
@@ -164,8 +154,8 @@ export default function CheckoutPage() {
     }
     const order = placeOrder({
       customer: { ...form },
-      customerId: user.uid,
-      status: 'Confirmed',
+      customerId: user?.uid || null,
+      status: 'Pending',
       paymentStatus: 'Paid',
       payment: {
         provider: verified.provider || provider,
@@ -180,7 +170,7 @@ export default function CheckoutPage() {
   }
 
   const payWithRazorpay = async () => {
-    const idToken = await user.getIdToken()
+    const idToken = await getOptionalIdToken()
     const paymentOrder = await startRazorpayCheckout({
       items: cart.map((item) => ({
         productId: item.id,
@@ -190,7 +180,7 @@ export default function CheckoutPage() {
       customer: { ...form },
       shippingAddress: { ...form },
       couponCode: appliedCoupon?.code || null,
-      idToken,
+      ...(idToken ? { idToken } : {}),
     })
 
     const razorpayOrderId =
@@ -232,7 +222,7 @@ export default function CheckoutPage() {
       razorpay_order_id: checkoutResult.razorpay_order_id,
       razorpay_payment_id: checkoutResult.razorpay_payment_id,
       razorpay_signature: checkoutResult.razorpay_signature,
-      idToken,
+      ...(idToken ? { idToken } : {}),
     })
 
     if (verified.status !== 'paid') {
@@ -269,13 +259,9 @@ export default function CheckoutPage() {
   const fieldClass =
     'mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100'
 
-  const payDisabled = paying || !authReady
+  const payDisabled = paying
   let payLabel
-  if (!authReady) {
-    payLabel = 'Checking account…'
-  } else if (!isAuthenticated) {
-    payLabel = 'Sign in to continue'
-  } else if (paying) {
+  if (paying) {
     payLabel = 'Processing payment…'
   } else if (provider === 'razorpay') {
     payLabel = `Pay ${formatPrice(cartTotal)}`
@@ -288,7 +274,7 @@ export default function CheckoutPage() {
       <SeoHead title="Checkout" noindex canonical="/checkout" />
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">Checkout</h1>
       <p className="mt-2 text-sm text-muted">
-        Delivery across Tamil Nadu · Payment via{' '}
+        Delivery across India · Payment via{' '}
         {provider === 'razorpay' ? 'Razorpay' : 'demo'} provider
       </p>
 
@@ -472,10 +458,6 @@ export default function CheckoutPage() {
               <dt className="text-muted">Shipping</dt>
               <dd>{shipping === 0 ? 'Free' : formatPrice(shipping)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted">GST</dt>
-              <dd>{formatPrice(tax)}</dd>
-            </div>
             <div className="flex justify-between border-t border-line pt-3 text-base">
               <dt className="font-bold">Total</dt>
               <dd className="font-extrabold">{formatPrice(cartTotal)}</dd>
@@ -507,17 +489,11 @@ export default function CheckoutPage() {
             </Link>
             .
           </p>
-          {!authReady ? null : !isAuthenticated ? (
-            <p className="mt-2 text-center text-xs text-muted">
-              Sign in or create an account to place your order securely.
-            </p>
-          ) : (
-            <p className="mt-2 text-center text-xs text-muted">
-              {provider === 'razorpay'
-                ? 'Secure payment powered by Razorpay. Your order is confirmed only after server verification.'
-                : 'Demo checkout simulates a successful UPI/card payment.'}
-            </p>
-          )}
+          <p className="mt-2 text-center text-xs text-muted">
+            {provider === 'razorpay'
+              ? 'Secure payment powered by Razorpay. Your order is confirmed only after server verification.'
+              : 'Demo checkout simulates a successful UPI/card payment.'}
+          </p>
         </aside>
       </form>
     </div>

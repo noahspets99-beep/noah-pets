@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   listCollection,
+  subscribeCollection,
   isFirebaseConfigured,
   fsQuery,
 } from '../services/firestore/repository'
@@ -18,8 +19,41 @@ import {
 
 const CatalogContext = createContext(null)
 
-const CACHE_KEY = 'noah_catalog_cache_v4'
+const CACHE_KEY = 'noah_catalog_cache_v5'
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
+
+/**
+ * Must match firestore.rules: public read requires active == true.
+ * Unfiltered collection queries fail for customers under those rules.
+ */
+const ACTIVE_BANNER_QUERY = [fsQuery.where('active', '==', true)]
+
+function isBannerInDateWindow(b) {
+  const now = Date.now()
+  if (b.startDate) {
+    const start = Date.parse(b.startDate)
+    if (Number.isFinite(start) && now < start) return false
+  }
+  if (b.endDate) {
+    const end = Date.parse(b.endDate)
+    // Treat endDate as inclusive calendar day
+    if (Number.isFinite(end) && now > end + 24 * 60 * 60 * 1000 - 1) return false
+  }
+  return true
+}
+
+function mapVisibleBanners(raw = []) {
+  return raw
+    .filter(
+      (b) =>
+        b &&
+        b.active === true &&
+        b.status !== 'Inactive' &&
+        b.status !== 'Scheduled' &&
+        isBannerInDateWindow(b),
+    )
+    .sort((a, b) => toMillis(b.updatedAt) - toMillis(a.updatedAt))
+}
 
 function toMillis(value) {
   if (!value) return 0
@@ -53,8 +87,16 @@ function maxDocMillis(docs = []) {
  * Fingerprint of the storefront-visible catalog.
  * Includes sorted IDs so deletes/adds are detected even when timestamps are ambiguous,
  * and max updatedAt across ALL raw docs so soft-deletes bump the version.
+ * Banners are included so Hero/promo stay in sync with Admin → Banners.
  */
-function buildCatalogVersion(visibleProducts = [], visibleCategories = [], rawProducts = [], rawCategories = []) {
+function buildCatalogVersion(
+  visibleProducts = [],
+  visibleCategories = [],
+  rawProducts = [],
+  rawCategories = [],
+  visibleBanners = [],
+  rawBanners = [],
+) {
   const productIds = visibleProducts
     .map((p) => p.id)
     .filter(Boolean)
@@ -65,13 +107,21 @@ function buildCatalogVersion(visibleProducts = [], visibleCategories = [], rawPr
     .filter(Boolean)
     .sort()
     .join(',')
+  const bannerIds = visibleBanners
+    .map((b) => b.id)
+    .filter(Boolean)
+    .sort()
+    .join(',')
   return [
     visibleProducts.length,
     visibleCategories.length,
+    visibleBanners.length,
     maxDocMillis(rawProducts.length ? rawProducts : visibleProducts),
     maxDocMillis(rawCategories.length ? rawCategories : visibleCategories),
+    maxDocMillis(rawBanners.length ? rawBanners : visibleBanners),
     productIds,
     categoryIds,
+    bannerIds,
   ].join('|')
 }
 
@@ -106,6 +156,7 @@ function isCacheFresh(cache) {
 export function invalidateCatalogCache() {
   try {
     localStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem('noah_catalog_cache_v4')
     localStorage.removeItem('noah_catalog_cache_v3')
     sessionStorage.removeItem('noah_catalog_cache_v2')
   } catch {
@@ -136,32 +187,43 @@ function mapVisibleCategories(raw = []) {
  * Compare live Firestore catalog to cached version.
  * Returns null on failure (caller should full-refresh).
  * Returns { changed: false } when cache still matches.
- * Returns { changed: true, products, categories, version } when out of date.
+ * Returns { changed: true, ... } when out of date.
  */
 async function probeCatalogAgainstCache(cachedVersion) {
-  const [prodOut, catOut] = await Promise.all([
+  const [prodOut, catOut, bannerOut] = await Promise.all([
     safeList('products'),
     safeList('categories'),
+    safeList('banners', ACTIVE_BANNER_QUERY),
   ])
 
   if (!prodOut.ok || prodOut.res.mode !== 'firestore') return null
   if (!catOut.ok || catOut.res.mode !== 'firestore') return null
-
+  // Banners query failure should not block the whole catalog probe
   const rawProducts = Array.isArray(prodOut.res.data) ? prodOut.res.data : []
   const rawCategories = Array.isArray(catOut.res.data) ? catOut.res.data : []
+  const rawBanners =
+    bannerOut.ok && bannerOut.res.mode === 'firestore' && Array.isArray(bannerOut.res.data)
+      ? bannerOut.res.data
+      : []
+  if (!bannerOut.ok) {
+    console.error('[catalog] banners probe failed', bannerOut.err?.message || bannerOut.err)
+  }
   const products = mapVisibleProducts(rawProducts)
   const categories = mapVisibleCategories(rawCategories)
+  const banners = mapVisibleBanners(rawBanners)
   const version = buildCatalogVersion(
     products,
     categories,
     rawProducts,
     rawCategories,
+    banners,
+    rawBanners,
   )
 
   if (cachedVersion && version === cachedVersion) {
-    return { changed: false, version, products, categories }
+    return { changed: false, version, products, categories, banners }
   }
-  return { changed: true, version, products, categories }
+  return { changed: true, version, products, categories, banners }
 }
 
 export function CatalogProvider({ children }) {
@@ -184,17 +246,63 @@ export function CatalogProvider({ children }) {
     setBanners(payload.banners)
     setSource(payload.source)
     if (persist && payload.source === 'firestore') {
+      const resolvedVersion =
+        version ||
+        buildCatalogVersion(
+          payload.products,
+          payload.categories,
+          payload.products,
+          payload.categories,
+          payload.banners,
+          payload.banners,
+        )
       writeCache({
         products: payload.products,
         categories: payload.categories,
         coupons: payload.coupons,
         banners: payload.banners,
         source: 'firestore',
-        version:
-          version ||
-          buildCatalogVersion(payload.products, payload.categories),
+        version: resolvedVersion,
       })
     }
+  }, [])
+
+  const refreshBanners = useCallback(async () => {
+    if (!isFirebaseConfigured) {
+      setBanners([])
+      return []
+    }
+    const bannerOut = await safeList('banners', ACTIVE_BANNER_QUERY)
+    if (
+      bannerOut.ok &&
+      bannerOut.res.mode === 'firestore' &&
+      Array.isArray(bannerOut.res.data)
+    ) {
+      const next = mapVisibleBanners(bannerOut.res.data)
+      setBanners(next)
+      // Keep cache banners in sync without trusting stale banner rows
+      try {
+        const existing = readCache()
+        if (existing) {
+          writeCache({
+            ...existing,
+            banners: next,
+            version: buildCatalogVersion(
+              existing.products || [],
+              existing.categories || [],
+              existing.products || [],
+              existing.categories || [],
+              next,
+              bannerOut.res.data,
+            ),
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+      return next
+    }
+    return null
   }, [])
 
   const load = useCallback(async () => {
@@ -216,7 +324,7 @@ export function CatalogProvider({ children }) {
         safeList('products'),
         safeList('categories'),
         safeList('coupons'),
-        safeList('banners', [fsQuery.where('active', '==', true)]),
+        safeList('banners', ACTIVE_BANNER_QUERY),
       ])
 
       let nextProducts = []
@@ -247,12 +355,14 @@ export function CatalogProvider({ children }) {
       }
 
       let nextBanners = []
+      let rawBanners = []
       if (
         bannerOut.ok &&
         bannerOut.res.mode === 'firestore' &&
         Array.isArray(bannerOut.res.data)
       ) {
-        nextBanners = bannerOut.res.data.filter((b) => b.active !== false)
+        rawBanners = bannerOut.res.data
+        nextBanners = mapVisibleBanners(rawBanners)
       }
 
       const failed = [prodOut, catOut, couponOut, bannerOut].filter((r) => !r.ok)
@@ -263,6 +373,8 @@ export function CatalogProvider({ children }) {
         nextCategories,
         rawProducts,
         rawCategories,
+        nextBanners,
+        rawBanners,
       )
 
       applyPayload(
@@ -305,16 +417,19 @@ export function CatalogProvider({ children }) {
       const fresh = isCacheFresh(existing)
 
       if (fresh && Array.isArray(existing.products)) {
-        // Serve cache immediately (already seeded into state)
+        // Serve product/category cache immediately; always refresh banners
         setLoading(false)
+        await refreshBanners()
+        if (cancelled) return
 
         const probe = await probeCatalogAgainstCache(existing.version || '')
         if (cancelled) return
 
         // Probe failed or catalog changed (add/edit/delete) → full reload.
-        // Matching fingerprint keeps the 12h cache without trusting stale IDs.
         if (!probe || probe.changed) {
           await load()
+        } else if (probe.banners) {
+          setBanners(probe.banners)
         }
         return
       }
@@ -329,11 +444,27 @@ export function CatalogProvider({ children }) {
       if (!cancelled) load()
     }
     window.addEventListener('noah:catalog-invalidate', onInvalidate)
+
+    // Realtime banners — matches firestore.rules public read (active == true)
+    let unsubBanners = () => {}
+    if (isFirebaseConfigured) {
+      unsubBanners = subscribeCollection('banners', ACTIVE_BANNER_QUERY, {
+        onData: (rows) => {
+          if (cancelled) return
+          setBanners(mapVisibleBanners(rows || []))
+        },
+        onError: (message) => {
+          console.error('[catalog] banners realtime', message)
+        },
+      })
+    }
+
     return () => {
       cancelled = true
       window.removeEventListener('noah:catalog-invalidate', onInvalidate)
+      unsubBanners()
     }
-  }, [load])
+  }, [load, refreshBanners])
 
   const value = useMemo(() => {
     const getBySlug = (slug) => {

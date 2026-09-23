@@ -11,8 +11,8 @@ export default function FaqPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title="FAQs | Pet Shop Tamil Nadu"
-        description="FAQs on delivery across Tamil Nadu, free shipping, returns, GST invoices and payments at Noah's Pets."
+        title="FAQs | Noah's Pets"
+        description="FAQs on delivery across India, free shipping, returns, GST invoices and payments at Noah's Pets."
         canonical="/faq"
       />
       <JsonLd data={faqSchema(faqs)} />

@@ -6,16 +6,15 @@ export default function BlogListPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title="Pet Care Blog Tamil Nadu"
-        description="Guides on puppy food, cat nutrition, brands and Tamil Nadu weather care from Noah's Pets."
+        title="Pet Care Blog"
+        description="Guides on puppy food, cat nutrition, brands and pet care from Noah's Pets. We deliver across India."
         canonical="/blog"
       />
       <h1 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
         Pet Care Blog
       </h1>
       <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-        Practical guides for Tamil Nadu pet parents — nutrition, brands and
-        seasonal care.
+        Practical guides for pet parents — nutrition, brands and seasonal care.
       </p>
       <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {blogPosts.map((post) => (

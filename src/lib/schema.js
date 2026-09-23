@@ -1,4 +1,4 @@
-import { STORE, formatStoreAddress } from '../config/store'
+import { STORE } from '../config/store'
 import { isProductInStock, productStock } from '../services/catalogMapper'
 
 const siteUrl = String(STORE.siteUrl || 'https://noahspets.com').replace(/\/$/, '')
@@ -21,10 +21,12 @@ export function organizationSchema() {
       addressCountry: 'IN',
     },
     areaServed: {
-      '@type': 'State',
-      name: 'Tamil Nadu',
+      '@type': 'Country',
+      name: 'India',
     },
-    sameAs: [STORE.social.instagram, STORE.social.facebook],
+    sameAs: [STORE.social.instagram, STORE.social.facebook, STORE.social.youtube].filter(
+      Boolean,
+    ),
   }
 }
 
@@ -67,17 +69,17 @@ export function productSchema(product, selectedVariant) {
       ? 'https://schema.org/InStock'
       : 'https://schema.org/OutOfStock'
 
-  return {
+  const images = product.images?.length
+    ? product.images
+    : product.image
+      ? [product.image]
+      : []
+
+  const schema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    image: product.images?.length ? product.images : [product.image],
-    description: product.shortDescription || product.description,
-    sku: selectedVariant?.sku || product.sku,
-    brand: {
-      '@type': 'Brand',
-      name: product.brand,
-    },
+    description: product.shortDescription || product.description || undefined,
     offers: {
       '@type': 'Offer',
       url: `${siteUrl}/product/${product.slug}`,
@@ -86,16 +88,28 @@ export function productSchema(product, selectedVariant) {
       availability,
       itemCondition: 'https://schema.org/NewCondition',
     },
-    ...(product.rating
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: String(product.rating),
-            reviewCount: String(product.reviews || 1),
-          },
-        }
-      : {}),
   }
+
+  if (images.length) schema.image = images
+  if (selectedVariant?.sku || product.sku) {
+    schema.sku = selectedVariant?.sku || product.sku
+  }
+  if (product.brand) {
+    schema.brand = { '@type': 'Brand', name: product.brand }
+  }
+  if (
+    product.rating != null &&
+    product.reviews != null &&
+    Number(product.reviews) > 0
+  ) {
+    schema.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: String(product.rating),
+      reviewCount: String(product.reviews),
+    }
+  }
+
+  return schema
 }
 
 export function faqSchema(faqs) {
@@ -112,15 +126,6 @@ export function faqSchema(faqs) {
     })),
   }
 }
-
-const TN_PRIORITY = [
-  'Chennai',
-  'Coimbatore',
-  'Madurai',
-  'Tiruchirappalli',
-  'Tirunelveli',
-  'Salem',
-]
 
 export function localBusinessSchema() {
   return {
@@ -139,12 +144,12 @@ export function localBusinessSchema() {
       postalCode: STORE.address.pincode,
       addressCountry: 'IN',
     },
-    description: formatStoreAddress(),
+    description: STORE.shortDescription,
     hasMap: STORE.mapsUrl,
-    areaServed: TN_PRIORITY.map((c) => ({
-      '@type': 'City',
-      name: c,
-    })),
+    areaServed: {
+      '@type': 'Country',
+      name: 'India',
+    },
     priceRange: '₹₹',
   }
 }

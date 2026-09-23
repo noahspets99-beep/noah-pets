@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Truck } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import { useShippingService } from '../../services/adminServices'
+import { useAdminStore } from '../../context/AdminStore'
 import { formatINR } from '../../admin/utils'
 
 const inputClass =
@@ -25,9 +26,15 @@ function Section({ title, description, children }) {
 
 export default function ShippingPage() {
   const shippingApi = useShippingService()
+  const { shippingSettings: liveShipping, taxSettings: liveTax } = useAdminStore()
   const [shipping, setShipping] = useState(() => shippingApi.getShipping())
   const [tax, setTax] = useState(() => shippingApi.getTax())
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setShipping({ ...liveShipping })
+    setTax({ ...liveTax })
+  }, [liveShipping, liveTax])
 
   const handleSave = async (e) => {
     e.preventDefault()

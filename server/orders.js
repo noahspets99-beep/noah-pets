@@ -232,11 +232,8 @@ export async function createPendingOrder({
     accessTokenHash: hashToken(accessToken),
     _writeIdToken: writeIdToken || null,
     timeline: [
-      { label: 'Order placed', at: now, done: true },
-      { label: 'Payment confirmed', at: null, done: false },
-      { label: 'Order processing', at: null, done: false },
-      { label: 'Shipped', at: null, done: false },
-      { label: 'Out for Delivery', at: null, done: false },
+      { label: 'Pending', at: now, done: true },
+      { label: 'Confirmed', at: null, done: false },
       { label: 'Delivered', at: null, done: false },
     ],
   }
@@ -301,7 +298,8 @@ async function persistPaidOrder(order) {
     ...payload,
     customerId: uid,
     paymentStatus: 'Paid',
-    status: payload.status === 'Pending' ? 'Confirmed' : payload.status,
+    // Fulfillment stays Pending until admin confirms (do not auto-promote)
+    status: payload.status || 'Pending',
   }
   await writeFirestoreDocument({
     collectionName: 'orders',
@@ -449,14 +447,10 @@ export async function markOrderPaid({
 
     const now = new Date().toISOString()
     const timeline = Array.isArray(order.timeline) ? [...order.timeline] : []
-    const payIdx = timeline.findIndex((t) => t.label === 'Payment confirmed')
-    if (payIdx >= 0) {
-      timeline[payIdx] = { label: 'Payment confirmed', at: now, done: true }
-    }
-
+    // Keep fulfillment status Pending after successful payment; admin confirms later.
     const next = {
       ...order,
-      status: order.status === 'Pending' ? 'Confirmed' : order.status,
+      status: order.status === 'Cancelled' ? 'Cancelled' : 'Pending',
       paymentStatus: 'Paid',
       paymentProvider: provider,
       razorpayOrderId: razorpayOrderId || order.razorpayOrderId,
@@ -524,13 +518,10 @@ export async function markOrderPaid({
 
     const now = new Date().toISOString()
     const timeline = Array.isArray(order.timeline) ? [...order.timeline] : []
-    const payIdx = timeline.findIndex((t) => t.label === 'Payment confirmed')
-    if (payIdx >= 0) {
-      timeline[payIdx] = { label: 'Payment confirmed', at: now, done: true }
-    }
 
     const patch = {
-      status: order.status === 'Pending' ? 'Confirmed' : order.status,
+      // Keep fulfillment Pending after payment; admin sets Confirmed/Delivered
+      status: order.status === 'Cancelled' ? 'Cancelled' : 'Pending',
       paymentStatus: 'Paid',
       paymentProvider: provider,
       razorpayOrderId: razorpayOrderId || order.razorpayOrderId,

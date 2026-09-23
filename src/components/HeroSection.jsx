@@ -1,108 +1,186 @@
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useCatalog } from '../context/CatalogProvider'
+
+const ROTATE_MS = 5500
+
+function bannerImage(b) {
+  return String(b?.image || b?.imageUrl || '').trim()
+}
+
+function isHeroPosition(b) {
+  const position = String(b?.position || '').trim().toLowerCase()
+  if (!position) return true
+  return position.includes('hero')
+}
 
 export default function HeroSection() {
-  return (
-    <section
-      id="home"
-      className="relative overflow-hidden bg-gradient-to-br from-brand-50 via-white to-sky-50"
-    >
-      <div
-        className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-brand-200/40 blur-3xl"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-sky-200/50 blur-3xl"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-accent/10 blur-2xl"
-        aria-hidden="true"
-      />
+  const { banners, loading } = useCatalog()
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-2 lg:gap-12 lg:px-8 lg:py-16">
-        <div className="animate-fade-up">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-700 shadow-soft backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-            Everything Your Pet Loves
-          </span>
+  const heroBanners = useMemo(() => {
+    const list = Array.isArray(banners) ? banners.filter(Boolean) : []
+    const heroOnly = list.filter(isHeroPosition)
+    const pool = heroOnly.length > 0 ? heroOnly : list
+    return pool.filter((b) => bannerImage(b) || b.title || b.heading)
+  }, [banners])
 
-          <h1 className="mt-4 text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-[3.4rem]">
-            Happy Pets.
-            <span className="block text-brand-600">Happier Homes.</span>
-          </h1>
+  const [index, setIndex] = useState(0)
+  const bannerKey = useMemo(
+    () =>
+      heroBanners
+        .map((b) => `${b.id}:${bannerImage(b)}:${b.updatedAt || ''}`)
+        .join('|'),
+    [heroBanners],
+  )
 
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-ink-soft sm:text-base">
-            Premium food, toys, grooming essentials and accessories for dogs,
-            cats and every companion — delivered across Tamil Nadu with care.
-          </p>
+  useEffect(() => {
+    setIndex(0)
+  }, [bannerKey])
 
-          <div className="mt-7 flex flex-wrap gap-3">
+  useEffect(() => {
+    if (heroBanners.length <= 1) return undefined
+    const timer = window.setInterval(() => {
+      setIndex((i) => (i + 1) % heroBanners.length)
+    }, ROTATE_MS)
+    return () => window.clearInterval(timer)
+  }, [heroBanners.length, bannerKey])
+
+  const banner =
+    heroBanners[Math.min(index, Math.max(heroBanners.length - 1, 0))] || null
+  const title = banner?.title || banner?.heading || ''
+  const subtitle = banner?.subtitle || banner?.description || ''
+  const ctaLabel = banner?.ctaLabel || banner?.buttonText || ''
+  const ctaTo = banner?.ctaLink || banner?.link || '/shop'
+  const image = bannerImage(banner)
+  const badge = banner?.discountLabel || banner?.offerText || banner?.badge || ''
+
+  const hasCta = Boolean(ctaLabel)
+  const Cta = typeof ctaTo === 'string' && ctaTo.startsWith('/') ? Link : 'a'
+  const ctaProps =
+    typeof ctaTo === 'string' && ctaTo.startsWith('/')
+      ? { to: ctaTo }
+      : {
+          href:
+            typeof ctaTo === 'string' &&
+            (ctaTo.startsWith('#') || ctaTo.startsWith('http'))
+              ? ctaTo
+              : '/shop',
+        }
+
+  if (loading && heroBanners.length === 0) {
+    return (
+      <section id="home" className="relative w-full overflow-hidden bg-surface">
+        <div className="mx-auto w-full max-w-7xl px-0 sm:px-4 lg:px-8">
+          <div className="aspect-[4/5] w-full animate-pulse bg-brand-100 sm:aspect-[16/9] lg:aspect-[2.4/1] sm:rounded-2xl" />
+        </div>
+      </section>
+    )
+  }
+
+  if (!loading && heroBanners.length === 0) {
+    return (
+      <section
+        id="home"
+        className="relative overflow-hidden bg-gradient-to-br from-brand-50 via-white to-sky-50"
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+          <div className="text-center">
+            <h1 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+              Noah&apos;s Pets
+            </h1>
+            <p className="mt-2 text-sm text-muted">Premium care for every pet</p>
             <Link
-              to="/products/dog-food"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-brand-600 hover:shadow-lift active:scale-[0.98]"
+              to="/shop"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-brand-600"
             >
               Shop Now
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <a
-              href="#shop-by-pet"
-              className="inline-flex items-center justify-center rounded-xl border border-line bg-white px-6 py-3 text-sm font-bold text-ink transition hover:border-brand-200 hover:bg-brand-50"
-            >
-              Explore Categories
-            </a>
           </div>
         </div>
+      </section>
+    )
+  }
 
-        <div
-          className="relative mx-auto w-full max-w-lg animate-fade-up lg:max-w-none"
-          style={{ animationDelay: '0.12s' }}
-        >
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] bg-brand-100 shadow-lift sm:aspect-[5/4]">
+  return (
+    <section id="home" className="relative w-full overflow-x-hidden bg-white">
+      <div className="mx-auto w-full max-w-7xl px-0 sm:px-4 lg:px-8">
+        {/*
+          Same Hero structure on all breakpoints.
+          Mobile: taller frame so the banner image reads clearly.
+          Desktop: wider/shorter cinematic frame.
+        */}
+        <div className="relative aspect-[4/5] w-full overflow-hidden bg-ink sm:aspect-[16/9] sm:rounded-2xl lg:aspect-[2.4/1]">
+          {image ? (
             <img
-              src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=900&h=800&fit=crop"
-              alt="Happy golden retriever ready for a walk"
+              key={`${banner?.id || 'banner'}-${image}`}
+              src={image}
+              alt={title || "Noah's Pets banner"}
               fetchPriority="high"
               decoding="async"
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/25 via-transparent to-transparent" />
-          </div>
-
-          <div className="absolute -left-2 top-6 max-w-[11rem] rounded-2xl border border-white/70 bg-white/95 p-3 shadow-lift backdrop-blur animate-float sm:-left-4 sm:max-w-[13rem] sm:p-3.5">
-            <img
-              src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=200&h=200&fit=crop"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="mb-2 h-12 w-12 rounded-xl object-cover"
-            />
-            <p className="text-xs font-bold text-ink sm:text-sm">
-              Premium Dog Food
-            </p>
-            <p className="text-[11px] text-success sm:text-xs">24% off today</p>
-          </div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-500 to-sky-400" />
+          )}
 
           <div
-            className="absolute -right-1 bottom-8 max-w-[10.5rem] rounded-2xl border border-white/70 bg-white/95 p-3 shadow-lift backdrop-blur animate-float sm:-right-3 sm:max-w-[12rem]"
-            style={{ animationDelay: '1.2s' }}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="mb-2 h-12 w-12 rounded-xl object-cover"
-            />
-            <p className="text-xs font-bold text-ink sm:text-sm">
-              Cat Essentials
-            </p>
-            <p className="text-[11px] text-muted sm:text-xs">Free shipping*</p>
+            className="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/25 to-ink/5 sm:bg-gradient-to-r sm:from-ink/70 sm:via-ink/30 sm:to-transparent"
+            aria-hidden="true"
+          />
+
+          <div className="absolute inset-0 flex items-end sm:items-center">
+            <div className="w-full max-w-xl px-4 pb-8 pt-10 sm:px-8 sm:pb-0 lg:px-10">
+              {badge ? (
+                <span className="inline-flex rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-soft sm:text-xs">
+                  {badge}
+                </span>
+              ) : null}
+
+              {title ? (
+                <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
+                  {title}
+                </h1>
+              ) : null}
+
+              {subtitle ? (
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-white/90 sm:mt-3 sm:text-base">
+                  {subtitle}
+                </p>
+              ) : null}
+
+              {hasCta ? (
+                <Cta
+                  {...ctaProps}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-brand-600 active:scale-[0.98] sm:mt-6 sm:px-6 sm:py-3"
+                >
+                  {ctaLabel}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Cta>
+              ) : null}
+            </div>
           </div>
 
-          <div className="absolute right-4 top-4 rounded-full bg-accent px-3 py-1.5 text-xs font-extrabold text-white shadow-soft sm:right-6 sm:top-6 sm:px-4 sm:py-2 sm:text-sm">
-            Up to 30% OFF
-          </div>
+          {heroBanners.length > 1 && (
+            <div
+              className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 sm:bottom-5"
+              aria-label="Banner slides"
+            >
+              {heroBanners.map((b, i) => (
+                <button
+                  key={b.id || i}
+                  type="button"
+                  aria-label={`Show banner ${i + 1}`}
+                  aria-current={i === index}
+                  onClick={() => setIndex(i)}
+                  className={`h-1.5 rounded-full transition ${
+                    i === index ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>

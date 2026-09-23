@@ -78,33 +78,6 @@ function App() {
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-            <Route element={<StoreLayout />}>
-              <Route index element={<ShopHomePage />} />
-              <Route path="shop" element={<ShopPage />} />
-              <Route path="products/:categorySlug" element={<CategoryPage />} />
-              <Route path="product/:slug" element={<ProductDetailPage />} />
-              <Route path="search" element={<SearchPage />} />
-              <Route path="cart" element={<CartPage />} />
-              <Route path="checkout" element={<CheckoutPage />} />
-              <Route path="orders" element={<OrdersPage />} />
-              <Route path="orders/:id" element={<OrderDetailPage />} />
-              <Route path="wishlist" element={<WishlistPage />} />
-              <Route path="account" element={<AccountPage />} />
-              <Route path="offers" element={<OffersPage />} />
-              <Route path="contact" element={<ContactPage />} />
-              <Route path="about" element={<AboutPage />} />
-              <Route path="shipping" element={<ShippingPage />} />
-              <Route path="returns" element={<ReturnsPage />} />
-              <Route path="terms" element={<TermsPage />} />
-              <Route path="privacy" element={<PrivacyPage />} />
-              <Route path="faq" element={<FaqPage />} />
-              <Route path="blog" element={<BlogListPage />} />
-              <Route path="blog/:slug" element={<BlogPostPage />} />
-              <Route path="locations/:citySlug" element={<LocationPage />} />
-              <Route path="404" element={<NotFoundPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-
             <Route
               path="/admin-login"
               element={
@@ -135,6 +108,34 @@ function App() {
               <Route path="seo" element={<SeoPage />} />
               <Route path="shipping" element={<AdminShippingPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="dashboard" replace />} />
+            </Route>
+
+            <Route path="/" element={<StoreLayout />}>
+              <Route index element={<ShopHomePage />} />
+              <Route path="shop" element={<ShopPage />} />
+              <Route path="products/:categorySlug" element={<CategoryPage />} />
+              <Route path="product/:slug" element={<ProductDetailPage />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="cart" element={<CartPage />} />
+              <Route path="checkout" element={<CheckoutPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:id" element={<OrderDetailPage />} />
+              <Route path="wishlist" element={<WishlistPage />} />
+              <Route path="account" element={<AccountPage />} />
+              <Route path="offers" element={<OffersPage />} />
+              <Route path="contact" element={<ContactPage />} />
+              <Route path="about" element={<AboutPage />} />
+              <Route path="shipping" element={<ShippingPage />} />
+              <Route path="returns" element={<ReturnsPage />} />
+              <Route path="terms" element={<TermsPage />} />
+              <Route path="privacy" element={<PrivacyPage />} />
+              <Route path="faq" element={<FaqPage />} />
+              <Route path="blog" element={<BlogListPage />} />
+              <Route path="blog/:slug" element={<BlogPostPage />} />
+              <Route path="locations/:citySlug" element={<LocationPage />} />
+              <Route path="404" element={<NotFoundPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -67,7 +67,7 @@ export default function DashboardPage() {
   const { products, orders, customers, dataStatus } = useAdminStore()
 
   const pendingOrders = orders.filter((o) =>
-    ['Pending', 'Confirmed', 'Processing'].includes(o.status),
+    ['Pending', 'Confirmed'].includes(o.status),
   ).length
   const lowStock = products.filter((p) => {
     const stock = Number(p.stock) || 0

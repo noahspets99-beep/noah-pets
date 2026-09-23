@@ -1,40 +1,24 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, MessageCircle, Phone } from 'lucide-react'
 import { STORE, formatStoreAddress } from '../config/store'
+import { useCatalog } from '../context/CatalogProvider'
 import BrandMark from './BrandMark'
 
-const columns = [
-  {
-    title: 'Shop',
-    links: [
-      { label: 'Dogs', to: '/products/dogs' },
-      { label: 'Cats', to: '/products/cats' },
-      { label: 'Food', to: '/products/dog-food' },
-      { label: 'Toys', to: '/products/toys' },
-      { label: 'Accessories', to: '/products/accessories' },
-      { label: 'Offers', to: '/offers' },
-    ],
-  },
-  {
-    title: 'Help',
-    links: [
-      { label: 'Contact Us', to: '/contact' },
-      { label: 'Shipping & Delivery Policy', to: '/shipping' },
-      { label: 'Refund & Cancellation Policy', to: '/returns' },
-      { label: 'FAQs', to: '/faq' },
-      { label: 'Track Order', to: '/orders' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'About Us', to: '/about' },
-      { label: 'Terms & Conditions', to: '/terms' },
-      { label: 'Privacy Policy', to: '/privacy' },
-      { label: 'Blog', to: '/blog' },
-      { label: 'Account', to: '/account' },
-    ],
-  },
+const helpLinks = [
+  { label: 'Contact Us', to: '/contact' },
+  { label: 'Shipping & Delivery Policy', to: '/shipping' },
+  { label: 'Refund & Cancellation Policy', to: '/returns' },
+  { label: 'FAQs', to: '/faq' },
+  { label: 'Track Order', to: '/orders' },
+]
+
+const companyLinks = [
+  { label: 'About Us', to: '/about' },
+  { label: 'Terms & Conditions', to: '/terms' },
+  { label: 'Privacy Policy', to: '/privacy' },
+  { label: 'Blog', to: '/blog' },
+  { label: 'Account', to: '/account' },
 ]
 
 const socialLinks = [
@@ -56,6 +40,30 @@ const socialLinks = [
 ]
 
 export default function Footer() {
+  const { categories } = useCatalog()
+
+  const shopLinks = useMemo(() => {
+    const categoryLinks = (categories || [])
+      .filter((c) => c.active !== false && c.status !== 'Inactive' && c.name)
+      .map((c) => ({
+        label: c.name,
+        to: `/products/${c.slug || c.id}`,
+      }))
+      .filter((link) => link.to !== '/products/' && link.to !== '/products/undefined')
+
+    return [
+      { label: 'All Products', to: '/shop' },
+      ...categoryLinks,
+      { label: 'Offers', to: '/offers' },
+    ]
+  }, [categories])
+
+  const columns = [
+    { title: 'Shop', links: shopLinks },
+    { title: 'Help', links: helpLinks },
+    { title: 'Company', links: companyLinks },
+  ]
+
   return (
     <footer className="border-t border-line bg-ink text-white">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
@@ -74,7 +82,7 @@ export default function Footer() {
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
               A modern pet marketplace based in Chennai, Tamil Nadu — premium
-              food, toys and accessories delivered across Tamil Nadu.
+              food, toys and accessories. We deliver across India.
             </p>
             <a
               href={STORE.mapsUrl}
@@ -113,7 +121,7 @@ export default function Footer() {
               </h3>
               <ul className="mt-4 space-y-2.5">
                 {column.links.map((link) => (
-                  <li key={link.label}>
+                  <li key={`${link.to}-${link.label}`}>
                     <Link
                       to={link.to}
                       className="text-sm text-white/65 transition hover:text-white"

@@ -61,7 +61,7 @@ export default function SeoPage() {
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="SEO"
-        subtitle="Homepage meta, defaults, analytics, and Tamil Nadu location SEO."
+        subtitle="Homepage meta, defaults, analytics, and city location SEO."
         actions={
           <button
             type="submit"
@@ -233,7 +233,7 @@ export default function SeoPage() {
         </Section>
 
         <Section
-          title="Location SEO (Tamil Nadu)"
+          title="Location SEO (priority cities)"
           description="Titles and descriptions for priority city landing pages"
         >
           <div className="space-y-4">

@@ -30,21 +30,21 @@ export const taxSettings = {
   country: 'IN',
   taxName: 'GST',
   pricesIncludeTax: false,
-  /** Demo rates for pet goods */
-  defaultRate: 5,
+  /** Default 0% until Admin configures a rate in Shipping & Tax */
+  defaultRate: 0,
   rates: [
     {
       id: 'gst-pet-food',
-      name: 'Pet food (GST 5%)',
-      rate: 5,
+      name: 'Pet food (GST)',
+      rate: 0,
       hsnHint: '2309',
       appliesToCategories: ['Food', 'Treats'],
       appliesToCategorySlugs: ['dog-food', 'cat-food', 'treats', 'birds', 'fish', 'small-pets'],
     },
     {
       id: 'gst-pet-accessories',
-      name: 'Pet accessories & toys (GST 12%)',
-      rate: 12,
+      name: 'Pet accessories & toys (GST)',
+      rate: 0,
       hsnHint: '4201 / 9503',
       appliesToCategories: [
         'Toys',
@@ -67,7 +67,7 @@ export const taxSettings = {
   cgstSgstSplit: true,
   invoiceLabel: 'GST Invoice',
   notes:
-    'Demo storefront: pet food/treats at 5% GST; accessories, toys, beds, litter and aquariums at 12%. Confirm HSN with your CA for production.',
+    'Configure the default tax rate in Admin → Shipping & Tax. Checkout uses 0% until a rate is set.',
 }
 
 /** Resolve GST % for a catalog/storefront product (demo rules). */
