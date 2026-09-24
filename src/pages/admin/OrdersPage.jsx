@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Package, Search, ShoppingBag } from 'lucide-react'
+import { Package, Printer, Search, ShoppingBag } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
 import Pagination from '../../admin/components/Pagination'
 import EmptyState from '../../admin/components/EmptyState'
 import { formatDate, formatINR, paginate } from '../../admin/utils'
+import { printAdminOrder } from '../../admin/printOrder'
 import { useAdminStore } from '../../context/AdminStore'
 
 const STATUS_TABS = [
@@ -212,12 +213,23 @@ export default function OrdersPage() {
                       <StatusBadge status={o.status} />
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        to={`/admin/orders/${o.id}`}
-                        className="font-semibold text-brand-600 hover:text-brand-700"
-                      >
-                        View
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          to={`/admin/orders/${o.id}`}
+                          className="font-semibold text-brand-600 hover:text-brand-700"
+                        >
+                          View
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => printAdminOrder(o)}
+                          className="inline-flex items-center gap-1.5 font-semibold text-ink-soft hover:text-ink"
+                          title={`Print order ${o.id}`}
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                          Print
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -263,13 +275,23 @@ export default function OrdersPage() {
                     <StatusBadge status={o.payment} />
                   </div>
                 </div>
-                <Link
-                  to={`/admin/orders/${o.id}`}
-                  className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
-                >
-                  <Package className="h-4 w-4" />
-                  View Order
-                </Link>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Link
+                    to={`/admin/orders/${o.id}`}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
+                  >
+                    <Package className="h-4 w-4" />
+                    View Order
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => printAdminOrder(o)}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print Order
+                  </button>
+                </div>
               </article>
             ))}
           </div>

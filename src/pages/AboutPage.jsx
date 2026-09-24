@@ -15,19 +15,24 @@ export default function AboutPage() {
       </h1>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-soft sm:text-base">
         <p>
-          Noah&apos;s Pets is an online pet store based in Kolathur, Chennai,
-          serving pet parents across India with carefully selected food, toys,
-          grooming and accessories.
+          Noah&apos;s Pets is a Chennai-based pet store offering a wide range of
+          pet food, bird supplies, reptile accessories, cat essentials, cages,
+          toys, feeding products and everyday pet-care accessories.
         </p>
         <p>
-          We curate dog food, cat litter, toys, grooming and aquarium supplies
-          from trusted brands, with transparent INR pricing shown at checkout.
+          From everyday essentials to specialty products, we bring trusted pet
+          brands and useful products together in one place for pet parents
+          across India.
+        </p>
+        <p>Based in Kolathur, Chennai, we deliver pet products across India. 🇮🇳</p>
+        <p>
+          <strong className="text-ink">Our Promise:</strong> Quality Products •
+          Trusted Brands • Helpful Service • Pan-India Delivery
         </p>
         <p>
-          Orders are prepared and packed at our Chennai location, then handed
-          over to delivery or courier partners for delivery across India.
-          Customers are responsible for providing an accurate delivery address
-          and being available to receive their order.
+          <strong className="text-ink">
+            Noah&apos;s Pets — Everything Your Pet Needs, All in One Place.
+          </strong>
         </p>
         <p>
           <strong className="text-ink">Address:</strong>{' '}

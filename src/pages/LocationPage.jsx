@@ -2,21 +2,32 @@ import { Link, useParams } from 'react-router-dom'
 import { TN_PRIORITY_CITIES } from '../config/store'
 import { catalogCategories } from '../data/catalog'
 import SeoHead from '../components/seo/SeoHead'
+import { useStoreContent } from '../context/StoreContentProvider'
 import NotFoundPage from './NotFoundPage'
 
 export default function LocationPage() {
   const { citySlug } = useParams()
   const city = TN_PRIORITY_CITIES.find((c) => c.slug === citySlug)
+  const { seoSettings } = useStoreContent()
 
   if (!city) return <NotFoundPage />
 
+  const locationSeo = (seoSettings?.locationSeo || []).find(
+    (row) => row.slug === city.slug,
+  )
   const categories = catalogCategories.filter((c) => !c.parentId).slice(0, 8)
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <SeoHead
-        title={`Pet Supplies Delivery in ${city.name} | Noah's Pets`}
-        description={`Buy dog food, cat products and pet accessories online with delivery in ${city.name}. ${city.highlights} We deliver across India.`}
+        title={
+          locationSeo?.title ||
+          `Pet Supplies Delivery in ${city.name} | Noah's Pets`
+        }
+        description={
+          locationSeo?.description ||
+          `Buy dog food, cat products and pet accessories online with delivery in ${city.name}. ${city.highlights} We deliver across India.`
+        }
         keywords={`pet shop ${city.name}, dog food ${city.name}, pet delivery India, Noah's Pets`}
         canonical={`/locations/${city.slug}`}
       />

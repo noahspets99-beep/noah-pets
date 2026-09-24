@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import { useSeoService } from '../../services/adminServices'
+import { useAdminStore } from '../../context/AdminStore'
 
 const inputClass =
   'w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100'
@@ -24,8 +25,13 @@ function Section({ title, description, children }) {
 
 export default function SeoPage() {
   const seo = useSeoService()
+  const { seoSettings } = useAdminStore()
   const [form, setForm] = useState(() => seo.get())
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setForm(structuredClone(seoSettings))
+  }, [seoSettings])
 
   const setNested = (path, value) => {
     setForm((prev) => {

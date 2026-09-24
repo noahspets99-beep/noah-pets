@@ -3,9 +3,13 @@ import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
-export default function DealsSection() {
+export default function DealsSection({ config = {} }) {
   const { products } = useCatalog()
-  const items = products.filter((p) => (p.discount || 0) >= 20).slice(0, 8)
+  const limit = Number(config.limit) || 8
+  const minDiscount = Number(config.minDiscount) || 20
+  const items = products
+    .filter((p) => (p.discount || 0) >= minDiscount)
+    .slice(0, limit)
 
   if (!items.length) return null
 
@@ -15,7 +19,7 @@ export default function DealsSection() {
         <SectionHeader
           eyebrow="Save more"
           title="Deals & Offers"
-          subtitle="20%+ off on selected pet food, toys and accessories — while stocks last."
+          subtitle={`${minDiscount}%+ off on selected pet food, toys and accessories — while stocks last.`}
           action={
             <Link
               to="/search?q=sale"

@@ -39,6 +39,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /brands/{id} {
+      allow read: if resource.data.active == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /subcategories/{id} {
       allow read: if true;
       allow write: if isAdmin();

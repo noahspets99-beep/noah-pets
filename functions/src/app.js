@@ -16,6 +16,7 @@ import {
   lookupCouponDoc,
   resolveLineItem,
   resolveTaxRate,
+  resolveShippingSettings,
 } from './pricing.js'
 import {
   createRazorpayOrder,
@@ -192,7 +193,11 @@ export function createApp() {
 
       const couponDoc = await lookupCouponDoc(db, couponCode)
       const taxRate = await resolveTaxRate(db)
-      const totals = calculateTotals(lines, couponCode, couponDoc, { taxRate })
+      const shippingSettings = await resolveShippingSettings(db)
+      const totals = calculateTotals(lines, couponCode, couponDoc, {
+        taxRate,
+        ...shippingSettings,
+      })
       if (totals.total < 1) {
         throw publicError(400, 'invalid_amount', 'Order total must be at least ₹1.')
       }
@@ -265,7 +270,11 @@ export function createApp() {
 
       const couponDoc = await lookupCouponDoc(db, couponCode)
       const taxRate = await resolveTaxRate(db)
-      const totals = calculateTotals(lines, couponCode, couponDoc, { taxRate })
+      const shippingSettings = await resolveShippingSettings(db)
+      const totals = calculateTotals(lines, couponCode, couponDoc, {
+        taxRate,
+        ...shippingSettings,
+      })
       if (totals.total < 1) {
         throw publicError(400, 'invalid_amount', 'Order total must be at least ₹1.')
       }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Heart,
@@ -22,6 +22,11 @@ import {
   isProductInStock,
   productStock,
 } from '../services/catalogMapper'
+import {
+  fsQuery,
+  isFirebaseConfigured,
+  listCollection,
+} from '../services/firestore/repository'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -39,26 +44,20 @@ const TABS = [
   { id: 'returns', label: 'Returns' },
 ]
 
-const PLACEHOLDER_REVIEWS = [
-  {
-    name: 'Karthik S.',
-    city: 'Chennai',
-    rating: 5,
-    text: 'Arrived fresh and well packed. My Lab finished the first bowl happily.',
-  },
-  {
-    name: 'Divya R.',
-    city: 'Coimbatore',
-    rating: 4,
-    text: 'Good value pack size for TN summers — we store it airtight and it stays fine.',
-  },
-  {
-    name: 'Mohammed A.',
-    city: 'Madurai',
-    rating: 5,
-    text: 'GST invoice was clear. Delivery took 3 days as promised.',
-  },
-]
+function mapReviewDoc(raw) {
+  if (!raw) return null
+  const text = raw.review || raw.text || raw.comment || ''
+  if (!text && !raw.rating) return null
+  return {
+    id: raw.id,
+    productId: raw.productId,
+    name: raw.customer || raw.customerName || raw.name || 'Customer',
+    city: raw.city || '',
+    rating: Number(raw.rating) || 0,
+    text,
+    date: raw.date || raw.createdAt || null,
+  }
+}
 
 export default function ProductDetailPage() {
   const { slug } = useParams()
@@ -75,6 +74,84 @@ export default function ProductDetailPage() {
   const [qty, setQty] = useState(1)
   const [tab, setTab] = useState('description')
   const [variantId, setVariantId] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+
+  // Reset UI state when navigating between products (avoid stale images/variants/reviews)
+  useEffect(() => {
+    setActiveImage(0)
+    setLightbox(false)
+    setQty(1)
+    setTab('description')
+    setVariantId(null)
+    setReviews([])
+  }, [slug, product?.id])
+
+  // Load only Approved reviews for this productId
+  useEffect(() => {
+    let cancelled = false
+    const productId = product?.id
+    if (!productId) {
+      setReviews([])
+      setReviewsLoading(false)
+      return undefined
+    }
+
+    async function loadReviews() {
+      setReviewsLoading(true)
+      if (!isFirebaseConfigured) {
+        if (!cancelled) {
+          setReviews([])
+          setReviewsLoading(false)
+        }
+        return
+      }
+      try {
+        let rows = []
+        try {
+          const res = await listCollection('reviews', [
+            fsQuery.where('productId', '==', productId),
+            fsQuery.where('status', '==', 'Approved'),
+          ])
+          if (res.mode === 'firestore' && Array.isArray(res.data)) {
+            rows = res.data
+          }
+        } catch (compoundErr) {
+          // Fallback if composite index missing: filter Approved client-side by productId
+          console.warn(
+            '[pdp] compound reviews query failed, falling back',
+            compoundErr?.message || compoundErr,
+          )
+          const res = await listCollection('reviews', [
+            fsQuery.where('status', '==', 'Approved'),
+          ])
+          if (res.mode === 'firestore' && Array.isArray(res.data)) {
+            rows = res.data.filter((r) => String(r.productId) === String(productId))
+          }
+        }
+        if (cancelled) return
+        const mapped = rows
+          .filter((r) => String(r.productId) === String(productId))
+          .filter((r) => String(r.status || '') === 'Approved')
+          .map(mapReviewDoc)
+          .filter(Boolean)
+          .sort(
+            (a, b) => new Date(b.date || 0) - new Date(a.date || 0),
+          )
+        setReviews(mapped)
+      } catch (err) {
+        console.warn('[pdp] reviews load failed', err?.message || err)
+        if (!cancelled) setReviews([])
+      } finally {
+        if (!cancelled) setReviewsLoading(false)
+      }
+    }
+
+    loadReviews()
+    return () => {
+      cancelled = true
+    }
+  }, [product?.id])
 
   const selectedVariant =
     product?.variants?.find((v) => v.id === variantId) ||
@@ -433,25 +510,35 @@ export default function ProductDetailPage() {
 
       <section className="mt-12">
         <h2 className="text-xl font-extrabold text-ink">Customer reviews</h2>
-        <ul className="mt-4 space-y-3">
-          {PLACEHOLDER_REVIEWS.map((r) => (
-            <li
-              key={r.name}
-              className="rounded-2xl border border-line bg-surface p-4"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-bold text-ink">
-                  {r.name}{' '}
-                  <span className="font-normal text-muted">· {r.city}</span>
-                </p>
-                <span className="text-xs font-semibold text-accent">
-                  {r.rating}/5
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-ink-soft">{r.text}</p>
-            </li>
-          ))}
-        </ul>
+        {reviewsLoading ? (
+          <p className="mt-4 text-sm text-muted">Loading reviews…</p>
+        ) : reviews.length === 0 ? (
+          <p className="mt-4 rounded-2xl border border-line bg-surface px-4 py-8 text-center text-sm text-muted">
+            No reviews yet for this product.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {reviews.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-2xl border border-line bg-surface p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold text-ink">
+                    {r.name}
+                    {r.city ? (
+                      <span className="font-normal text-muted"> · {r.city}</span>
+                    ) : null}
+                  </p>
+                  <span className="text-xs font-semibold text-accent">
+                    {r.rating}/5
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-ink-soft">{r.text}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {fbt.length > 0 && (

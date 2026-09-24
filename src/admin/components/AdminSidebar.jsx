@@ -12,6 +12,7 @@ import {
   Newspaper,
   Package,
   PawPrint,
+  Award,
   Search,
   Settings,
   ShoppingBag,
@@ -37,6 +38,7 @@ const navGroups = [
     items: [
       { to: '/admin/products', label: 'Products', icon: Package },
       { to: '/admin/categories', label: 'Categories', icon: Tag },
+      { to: '/admin/brands', label: 'Brands', icon: Award },
       { to: '/admin/inventory', label: 'Inventory', icon: Boxes },
     ],
   },

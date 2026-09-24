@@ -3,11 +3,12 @@ import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
-export default function NewArrivalsSection() {
+export default function NewArrivalsSection({ config = {} }) {
   const { products } = useCatalog()
+  const limit = Number(config.limit) || 8
   const items = products
     .filter((p) => p.newArrival || p.badge === 'New')
-    .slice(0, 8)
+    .slice(0, limit)
 
   if (!items.length) return null
 

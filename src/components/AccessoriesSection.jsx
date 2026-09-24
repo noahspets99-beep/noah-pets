@@ -1,7 +1,44 @@
-import { accessoryCategories } from '../data/products'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { useCatalog } from '../context/CatalogProvider'
+import { accessoryCategories as seedAccessories } from '../data/products'
 import SectionHeader from './SectionHeader'
 
+const ACCESSORY_HINT =
+  /collar|leash|bed|toy|bowl|groom|cloth|carrier|accessor|harness|travel|litter|scratch/i
+
+/**
+ * Accessories tiles from Admin categories when available; seed fallback otherwise.
+ */
 export default function AccessoriesSection() {
+  const { categories } = useCatalog()
+
+  const tiles = useMemo(() => {
+    const active = (categories || []).filter(
+      (c) =>
+        c.active !== false &&
+        c.status !== 'Inactive' &&
+        c.image &&
+        (ACCESSORY_HINT.test(String(c.name || '')) ||
+          ACCESSORY_HINT.test(String(c.slug || '')) ||
+          ACCESSORY_HINT.test(String(c.description || ''))),
+    )
+    if (active.length > 0) {
+      return active.slice(0, 8).map((c) => ({
+        id: c.id,
+        name: c.name,
+        image: c.image,
+        slug: c.slug || c.id,
+      }))
+    }
+    return seedAccessories.map((c) => ({
+      ...c,
+      slug: c.id,
+    }))
+  }, [categories])
+
+  if (tiles.length === 0) return null
+
   return (
     <section id="accessories" className="bg-surface py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -12,10 +49,10 @@ export default function AccessoriesSection() {
         />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {accessoryCategories.map((cat) => (
-            <a
+          {tiles.map((cat) => (
+            <Link
               key={cat.id}
-              href="#featured"
+              to={`/products/${cat.slug}`}
               className="group relative overflow-hidden rounded-2xl border border-line shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-lift"
             >
               <div className="aspect-[4/3] overflow-hidden">
@@ -35,7 +72,7 @@ export default function AccessoriesSection() {
                   Shop collection
                 </p>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>

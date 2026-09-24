@@ -12,38 +12,16 @@ export const homepageSections = [
       subheadline: 'Premium pet care — we deliver across India',
       ctaLabel: 'Shop now',
       ctaHref: '/shop',
-      secondaryCtaLabel: 'Shop by pet',
-      secondaryCtaHref: '/#shop-by-pet',
     },
   },
   {
     id: 'hs-shop-pet',
     key: 'shopByPet',
-    title: 'Shop by Pet',
+    title: 'Shop by Category',
     enabled: true,
     sortOrder: 2,
     config: {
-      pets: ['Dogs', 'Cats', 'Birds', 'Fish', 'Small Pets'],
-    },
-  },
-  {
-    id: 'hs-shop-cat',
-    key: 'shopByCategory',
-    title: 'Shop by Category',
-    enabled: true,
-    sortOrder: 3,
-    config: {
-      limit: 8,
-      categorySlugs: [
-        'dog-food',
-        'cat-food',
-        'treats',
-        'toys',
-        'beds',
-        'grooming',
-        'litter-hygiene',
-        'aquariums',
-      ],
+      limit: 12,
     },
   },
   {
@@ -51,11 +29,19 @@ export const homepageSections = [
     key: 'featured',
     title: 'Featured Products',
     enabled: true,
-    sortOrder: 4,
+    sortOrder: 3,
     config: {
       limit: 8,
       source: 'featured',
     },
+  },
+  {
+    id: 'hs-promo',
+    key: 'promo',
+    title: 'Promo Banner',
+    enabled: true,
+    sortOrder: 4,
+    config: {},
   },
   {
     id: 'hs-bestsellers',
@@ -88,7 +74,6 @@ export const homepageSections = [
     config: {
       limit: 8,
       minDiscount: 20,
-      badges: ['Sale'],
     },
   },
   {
@@ -100,6 +85,9 @@ export const homepageSections = [
     config: {
       petType: 'Dogs',
       limit: 8,
+      title: 'For Dogs',
+      subtitle: 'Food, treats, toys and gear for every good boy and girl.',
+      slug: 'dogs',
     },
   },
   {
@@ -111,6 +99,9 @@ export const homepageSections = [
     config: {
       petType: 'Cats',
       limit: 8,
+      title: 'For Cats',
+      subtitle: 'Nutrition, litter and enrichment for feline homes.',
+      slug: 'cats',
     },
   },
   {
@@ -122,6 +113,9 @@ export const homepageSections = [
     config: {
       petType: 'Birds',
       limit: 4,
+      title: 'For Birds',
+      subtitle: 'Seeds, cages and enrichment for feathered companions.',
+      slug: 'birds',
     },
   },
   {
@@ -133,61 +127,49 @@ export const homepageSections = [
     config: {
       petType: 'Fish',
       limit: 4,
+      title: 'For Fish',
+      subtitle: 'Food, tanks and water care for aquariums.',
+      slug: 'fish',
     },
   },
   {
-    id: 'hs-recommended',
-    key: 'recommended',
-    title: 'Recommended for You',
+    id: 'hs-food',
+    key: 'food',
+    title: 'Nutrition / Food',
     enabled: true,
     sortOrder: 12,
-    config: {
-      limit: 8,
-      strategy: 'trending-and-bestsellers',
-    },
+    config: {},
+  },
+  {
+    id: 'hs-accessories',
+    key: 'accessories',
+    title: 'Accessories',
+    enabled: true,
+    sortOrder: 13,
+    config: {},
   },
   {
     id: 'hs-brands',
     key: 'brands',
     title: 'Shop by Brand',
     enabled: true,
-    sortOrder: 13,
-    config: {
-      brands: [
-        'Royal Canin',
-        'Pedigree',
-        'Whiskas',
-        'Drools',
-        'Farmina',
-        'PawNutrition',
-        'PlayPaws',
-        'Sheba',
-      ],
-    },
-  },
-  {
-    id: 'hs-reviews',
-    key: 'reviews',
-    title: 'Customer Reviews',
-    enabled: true,
     sortOrder: 14,
     config: {
-      limit: 4,
-      minRating: 4,
+      brands: [],
+      limit: 16,
     },
   },
   {
     id: 'hs-why',
     key: 'whyChooseUs',
-    title: 'Why Choose Noah\'s Pets',
+    title: 'Trust Features',
     enabled: true,
     sortOrder: 15,
     config: {
       points: [
-        { title: 'Delivery across India', text: 'Doorstep delivery nationwide' },
-        { title: 'Genuine brands', text: 'Pedigree, Royal Canin, Whiskas & house labels' },
-        { title: 'GST invoices', text: 'Transparent pricing in INR' },
-        { title: 'Pet-care guidance', text: 'Guides for food, litter & grooming' },
+        { title: 'Fast Delivery', text: 'Quick delivery to your doorstep' },
+        { title: 'Secure Payments', text: 'Safe and secure checkout' },
+        { title: 'Pet First', text: 'Products selected with pets in mind' },
       ],
     },
   },
@@ -204,25 +186,105 @@ export const homepageSections = [
     },
   },
   {
+    id: 'hs-reviews',
+    key: 'reviews',
+    title: 'Customer Reviews',
+    enabled: true,
+    sortOrder: 17,
+    config: {
+      limit: 4,
+      minRating: 4,
+    },
+  },
+  {
+    id: 'hs-care',
+    key: 'careTips',
+    title: 'Care Tips / Blog',
+    enabled: true,
+    sortOrder: 18,
+    config: {
+      limit: 3,
+    },
+  },
+  {
     id: 'hs-faq',
     key: 'faq',
     title: 'FAQs',
     enabled: true,
-    sortOrder: 17,
+    sortOrder: 19,
     config: {
       limit: 6,
-      source: 'faqs',
     },
+  },
+  {
+    id: 'hs-newsletter',
+    key: 'newsletter',
+    title: 'Newsletter',
+    enabled: true,
+    sortOrder: 20,
+    config: {},
   },
 ]
 
-export function getEnabledHomepageSections() {
-  return homepageSections
+export function cloneHomepageSections(sections = homepageSections) {
+  return sections.map((s) => ({
+    ...s,
+    config: s.config ? JSON.parse(JSON.stringify(s.config)) : {},
+  }))
+}
+
+export function mergeHomepageSections(remoteRows = []) {
+  const seed = cloneHomepageSections()
+  if (!Array.isArray(remoteRows) || remoteRows.length === 0) return seed
+
+  const byId = new Map()
+  const byKey = new Map()
+  remoteRows.forEach((row) => {
+    if (!row) return
+    if (row.id) byId.set(row.id, row)
+    if (row.key) byKey.set(row.key, row)
+  })
+
+  const seedIds = new Set(seed.map((s) => s.id))
+  const merged = seed.map((s) => {
+    const remote = byId.get(s.id) || byKey.get(s.key)
+    if (!remote) return s
+    return {
+      ...s,
+      ...remote,
+      id: s.id,
+      key: s.key,
+      config: {
+        ...(s.config || {}),
+        ...(remote.config && typeof remote.config === 'object' ? remote.config : {}),
+      },
+      enabled: remote.enabled !== false,
+      sortOrder: Number(remote.sortOrder) || s.sortOrder,
+      title: remote.title || s.title,
+    }
+  })
+
+  remoteRows.forEach((row) => {
+    if (!row?.id || seedIds.has(row.id)) return
+    if (row.key && seed.some((s) => s.key === row.key)) return
+    merged.push({
+      ...row,
+      config: row.config && typeof row.config === 'object' ? row.config : {},
+      enabled: row.enabled !== false,
+      sortOrder: Number(row.sortOrder) || merged.length + 1,
+    })
+  })
+
+  return merged.sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+export function getEnabledHomepageSections(sections = homepageSections) {
+  return sections
     .filter((s) => s.enabled)
     .slice()
     .sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
-export function getHomepageSectionByKey(key) {
-  return homepageSections.find((s) => s.key === key) || null
+export function getHomepageSectionByKey(key, sections = homepageSections) {
+  return sections.find((s) => s.key === key) || null
 }

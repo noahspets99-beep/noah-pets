@@ -35,6 +35,7 @@ const AdminStoreProvider = lazy(() =>
 )
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const BannersPage = lazy(() => import('./pages/admin/BannersPage'))
+const BrandsPage = lazy(() => import('./pages/admin/BrandsPage'))
 const BlogAdminPage = lazy(() => import('./pages/admin/BlogAdminPage'))
 const CategoriesPage = lazy(() => import('./pages/admin/CategoriesPage'))
 const CouponsPage = lazy(() => import('./pages/admin/CouponsPage'))
@@ -94,6 +95,7 @@ function App() {
               <Route path="products/new" element={<ProductFormPage />} />
               <Route path="products/:id/edit" element={<ProductFormPage />} />
               <Route path="categories" element={<CategoriesPage />} />
+              <Route path="brands" element={<BrandsPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="orders/:id" element={<AdminOrderDetailPage />} />

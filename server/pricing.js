@@ -14,6 +14,11 @@ const STANDARD_SHIPPING_FEE = 49
 const DEFAULT_TAX_RATE = 0
 
 let taxRateCache = { at: 0, rate: DEFAULT_TAX_RATE }
+let shippingCache = {
+  at: 0,
+  freeShippingMinOrder: FREE_SHIPPING_MIN,
+  standardShippingFee: STANDARD_SHIPPING_FEE,
+}
 
 function firestoreProjectId() {
   return (
@@ -161,6 +166,59 @@ async function fetchPublicTaxSettings() {
     console.warn('[payments] Public taxSettings lookup failed', err?.message || err)
     return null
   }
+}
+
+async function fetchPublicShippingSettings() {
+  const projectId = firestoreProjectId()
+  const url = withApiKey(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/shippingSettings/default`,
+  )
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return decodeFirestoreDocument(await res.json())
+  } catch (err) {
+    console.warn('[payments] Public shippingSettings lookup failed', err?.message || err)
+    return null
+  }
+}
+
+/**
+ * Resolve Admin-configured shipping fees from Firestore shippingSettings/default.
+ */
+export async function resolveShippingSettings(db) {
+  if (shippingCache.at && Date.now() - shippingCache.at < 30_000) {
+    return {
+      freeShippingMinOrder: shippingCache.freeShippingMinOrder,
+      standardShippingFee: shippingCache.standardShippingFee,
+    }
+  }
+  let freeShippingMinOrder = FREE_SHIPPING_MIN
+  let standardShippingFee = STANDARD_SHIPPING_FEE
+  let data = null
+  if (db) {
+    try {
+      const snap = await db.collection('shippingSettings').doc('default').get()
+      if (snap.exists) data = snap.data()
+    } catch (err) {
+      console.warn('[payments] Admin shippingSettings lookup failed', err?.message || err)
+      data = await fetchPublicShippingSettings()
+    }
+  } else {
+    data = await fetchPublicShippingSettings()
+  }
+  if (data) {
+    const free = Number(data.freeShippingMinOrder)
+    const fee = Number(data.standardShippingFee)
+    if (Number.isFinite(free) && free >= 0) freeShippingMinOrder = free
+    if (Number.isFinite(fee) && fee >= 0) standardShippingFee = fee
+  }
+  shippingCache = {
+    at: Date.now(),
+    freeShippingMinOrder,
+    standardShippingFee,
+  }
+  return { freeShippingMinOrder, standardShippingFee }
 }
 
 /**
@@ -322,7 +380,15 @@ export function calculateTotals(lineItems, couponCode, couponDoc = null, options
   }
 
   const taxable = Math.max(0, subtotal - discount)
-  const shipping = taxable >= FREE_SHIPPING_MIN ? 0 : STANDARD_SHIPPING_FEE
+  const freeMin =
+    Number(options.freeShippingMinOrder) >= 0
+      ? Number(options.freeShippingMinOrder)
+      : FREE_SHIPPING_MIN
+  const shipFee =
+    Number(options.standardShippingFee) >= 0
+      ? Number(options.standardShippingFee)
+      : STANDARD_SHIPPING_FEE
+  const shipping = taxable >= freeMin ? 0 : shipFee
   const taxRate = Number(options.taxRate)
   const safeRate =
     Number.isFinite(taxRate) && taxRate > 0 ? taxRate : DEFAULT_TAX_RATE

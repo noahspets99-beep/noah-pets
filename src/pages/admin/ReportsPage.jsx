@@ -104,29 +104,37 @@ export default function ReportsPage() {
 
         <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
           <h2 className="mb-4 text-base font-bold text-ink">Sales by category</h2>
-          <DonutChart data={reports.categoryRevenue} />
+          {reports.categoryRevenue.length === 0 ? (
+            <p className="text-sm text-muted">No category sales yet.</p>
+          ) : (
+            <DonutChart data={reports.categoryRevenue} />
+          )}
         </section>
 
         <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
           <h2 className="mb-4 text-base font-bold text-ink">Best sellers</h2>
-          <ul className="divide-y divide-line">
-            {reports.topSellingProducts.map((p) => (
-              <li
-                key={p.name}
-                className="flex items-center justify-between gap-3 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {p.name}
+          {reports.topSellingProducts.length === 0 ? (
+            <p className="text-sm text-muted">No order line items yet.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {reports.topSellingProducts.map((p) => (
+                <li
+                  key={p.name}
+                  className="flex items-center justify-between gap-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-muted">{p.sales} sold</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-bold text-brand-700">
+                    {formatINR(p.revenue)}
                   </p>
-                  <p className="text-xs text-muted">{p.sales} sold</p>
-                </div>
-                <p className="shrink-0 text-sm font-bold text-brand-700">
-                  {formatINR(p.revenue)}
-                </p>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </div>

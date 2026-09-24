@@ -1,6 +1,6 @@
 import { HeartHandshake, Lock, RotateCcw, Truck } from 'lucide-react'
 
-const features = [
+const DEFAULT_FEATURES = [
   {
     icon: Truck,
     title: 'Fast Delivery',
@@ -16,14 +16,21 @@ const features = [
     title: 'Pet First',
     description: 'Products selected with pets in mind',
   },
-  {
-    icon: RotateCcw,
-    title: 'Easy Returns',
-    description: 'Simple hassle-free returns',
-  },
 ]
 
-export default function TrustFeatures() {
+const ICON_CYCLE = [Truck, Lock, HeartHandshake, RotateCcw]
+
+export default function TrustFeatures({ config = {} }) {
+  const points = Array.isArray(config.points) ? config.points : []
+  const features =
+    points.length > 0
+      ? points.map((p, i) => ({
+          icon: ICON_CYCLE[i % ICON_CYCLE.length],
+          title: p.title || p.label || 'Feature',
+          description: p.text || p.description || '',
+        }))
+      : DEFAULT_FEATURES
+
   return (
     <section className="bg-white py-10 sm:py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -1,8 +1,31 @@
 import { Star } from 'lucide-react'
-import { reviews } from '../data/products'
+import { isFirebaseConfigured } from '../services/firestore/repository'
+import { useStoreContent } from '../context/StoreContentProvider'
+import { reviews as seedReviews } from '../data/products'
 import SectionHeader from './SectionHeader'
 
-export default function ReviewsSection() {
+/**
+ * Homepage reviews — Approved reviews from Admin/Firestore when available.
+ * No seed fallback when Firebase is configured (empty = hide section).
+ */
+export default function ReviewsSection({ config = {} }) {
+  const { approvedReviews, reviewsReady } = useStoreContent()
+  const limit = Number(config.limit) || 4
+  const minRating = Number(config.minRating) || 0
+
+  const list = (
+    isFirebaseConfigured
+      ? approvedReviews
+      : reviewsReady && approvedReviews.length > 0
+        ? approvedReviews
+        : seedReviews
+  )
+    .filter((r) => (Number(r.rating) || 0) >= minRating)
+    .slice(0, limit)
+
+  if (!reviewsReady && isFirebaseConfigured) return null
+  if (list.length === 0) return null
+
   return (
     <section className="bg-surface py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -14,7 +37,7 @@ export default function ReviewsSection() {
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {reviews.map((review) => (
+          {list.map((review) => (
             <article
               key={review.id}
               className="flex h-full flex-col rounded-2xl border border-line bg-white p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift"

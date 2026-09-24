@@ -100,4 +100,21 @@ export async function removeDocument(name, id) {
   return { mode: 'firestore', ok: true }
 }
 
+export function subscribeDocument(name, id, { onData, onError } = {}) {
+  if (!isFirebaseConfigured || !db) {
+    onError?.('Firebase is not configured')
+    return () => {}
+  }
+  return onSnapshot(
+    doc(db, name, id),
+    (snap) => {
+      onData?.(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+    },
+    (err) => {
+      console.error(`subscribeDocument(${name}/${id})`, err?.code || err?.message || err)
+      onError?.(err?.message || 'Failed to load document from Firebase')
+    },
+  )
+}
+
 export const fsQuery = { query, where, orderBy, limit, collection, doc }

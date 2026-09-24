@@ -5,13 +5,15 @@ import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
 /**
- * Featured Products filters use currently active Admin categories only.
+ * Featured Products — prefers Admin-flagged featured products.
+ * Falls back to all catalog products when none are marked featured.
  */
-export default function FeaturedProducts() {
+export default function FeaturedProducts({ config = {} }) {
   const { searchQuery } = useShop()
   const { products, categories, filterProducts } = useCatalog()
   const [activeTab, setActiveTab] = useState('All')
   const [sortBy, setSortBy] = useState('popular')
+  const limit = Number(config.limit) || 0
 
   const tabs = useMemo(() => {
     const names = (categories || [])
@@ -27,8 +29,23 @@ export default function FeaturedProducts() {
   }, [tabs, activeTab])
 
   const filtered = useMemo(() => {
+    const featuredOnly = (products || []).filter((p) => p.featured)
+    const pool =
+      config.source === 'featured' && featuredOnly.length > 0
+        ? featuredOnly
+        : featuredOnly.length > 0
+          ? featuredOnly
+          : products
+
     let list =
-      activeTab === 'All' ? products : filterProducts(activeTab)
+      activeTab === 'All'
+        ? pool
+        : pool.filter((p) => {
+            const byCat = filterProducts(activeTab)
+            const ids = new Set(byCat.map((x) => x.id))
+            return ids.has(p.id)
+          })
+
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       list = list.filter((p) =>
@@ -44,8 +61,17 @@ export default function FeaturedProducts() {
     else if (sortBy === 'price-high') sorted.sort((a, b) => b.price - a.price)
     else if (sortBy === 'rating') sorted.sort((a, b) => b.rating - a.rating)
     else sorted.sort((a, b) => b.reviews - a.reviews)
-    return sorted
-  }, [activeTab, sortBy, searchQuery, products, filterProducts])
+
+    return limit > 0 ? sorted.slice(0, limit) : sorted
+  }, [
+    activeTab,
+    sortBy,
+    searchQuery,
+    products,
+    filterProducts,
+    config.source,
+    limit,
+  ])
 
   return (
     <section id="featured" className="bg-white py-12 sm:py-16">

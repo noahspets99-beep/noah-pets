@@ -1,20 +1,43 @@
 import { Link } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
 import { TN_PRIORITY_CITIES } from '../config/store'
-import { shippingSettings } from '../data/shippingTax'
+import { useStoreContent } from '../context/StoreContentProvider'
 import SectionHeader from './SectionHeader'
 
-export default function DeliveryTNSection() {
+export default function DeliveryTNSection({ config = {} }) {
+  const { shippingSettings } = useStoreContent()
+  const freeMin =
+    Number(config.freeShippingMin) ||
+    Number(shippingSettings?.freeShippingMinOrder) ||
+    999
+  const eta =
+    config.etaText ||
+    (shippingSettings?.standardEtaDays
+      ? `${shippingSettings.standardEtaDays} business days across India`
+      : '2–5 business days across India')
+
+  const cityNames = Array.isArray(config.cities) ? config.cities : []
+  const cities =
+    cityNames.length > 0
+      ? TN_PRIORITY_CITIES.filter((c) =>
+          cityNames.some(
+            (n) => String(n).toLowerCase() === String(c.name).toLowerCase(),
+          ),
+        )
+      : TN_PRIORITY_CITIES
+
+  const displayCities = cities.length > 0 ? cities : TN_PRIORITY_CITIES
+
   return (
     <section className="bg-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
           eyebrow="Delivery across India"
           title="We deliver across India"
-          subtitle={`Free shipping on orders ₹${shippingSettings.freeShippingMinOrder}+ · Standard ETA ${shippingSettings.standardEtaDays} business days.`}
+          subtitle={`Free shipping on orders ₹${freeMin}+ · Standard ETA ${eta}.`}
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {TN_PRIORITY_CITIES.map((city) => (
+          {displayCities.map((city) => (
             <Link
               key={city.slug}
               to={`/locations/${city.slug}`}

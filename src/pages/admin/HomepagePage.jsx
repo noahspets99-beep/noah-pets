@@ -51,7 +51,7 @@ export default function HomepagePage() {
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="Homepage"
-        subtitle="Enable, reorder, and configure storefront homepage sections."
+        subtitle="Enable, reorder, and configure storefront homepage sections (saved to Firebase)."
         actions={
           <Link
             to="/admin/banners"
@@ -67,7 +67,7 @@ export default function HomepagePage() {
         <EmptyState
           icon={Layout}
           title="No homepage sections"
-          description="Seed sections from homepageSections.js will appear here."
+          description="Homepage sections will appear here once loaded."
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">

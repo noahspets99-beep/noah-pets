@@ -2,13 +2,34 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCatalog } from '../context/CatalogProvider'
 
+function isPromoPosition(b) {
+  const position = String(b?.position || '').trim().toLowerCase()
+  if (!position) return false
+  return (
+    position.includes('promo') ||
+    position.includes('mid') ||
+    position.includes('offer') ||
+    position.includes('strip')
+  )
+}
+
+function isHeroPosition(b) {
+  const position = String(b?.position || '').trim().toLowerCase()
+  if (!position) return true
+  return position.includes('hero')
+}
+
 /**
- * Promo / offers banner — same layout; content prefers active Firebase banners.
+ * Promo / offers banner — prefers Mid / Promo Strip banners from Admin.
+ * Falls back to a non-hero active banner, then hardcoded defaults.
  */
 export default function PromoBanner() {
   const { banners } = useCatalog()
+  const list = Array.isArray(banners) ? banners.filter((b) => b && b.active !== false) : []
+  const promoPool = list.filter(isPromoPosition)
+  const nonHero = list.filter((b) => !isHeroPosition(b))
   const banner =
-    (banners || []).find((b) => b.active !== false) || null
+    promoPool[0] || nonHero[0] || (list.length > 1 ? list[1] : null)
 
   const eyebrow = banner?.eyebrow || banner?.badge || 'Limited season offers'
   const title =

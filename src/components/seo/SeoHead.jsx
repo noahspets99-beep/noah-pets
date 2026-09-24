@@ -13,6 +13,8 @@ export default function SeoHead({
   ogTitle,
   ogDescription,
   twitterCard = 'summary_large_image',
+  googleVerification,
+  analyticsId,
 }) {
   const fullTitle = title
     ? title.includes(STORE.name)
@@ -38,6 +40,9 @@ export default function SeoHead({
       ) : (
         <meta name="robots" content="index, follow, max-image-preview:large" />
       )}
+      {googleVerification ? (
+        <meta name="google-site-verification" content={googleVerification} />
+      ) : null}
       <meta property="og:site_name" content={STORE.name} />
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={ogTitle || fullTitle} />
@@ -51,6 +56,14 @@ export default function SeoHead({
       <meta name="twitter:image" content={image} />
       <meta name="geo.region" content="IN" />
       <meta name="geo.placename" content="India" />
+      {analyticsId ? (
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${analyticsId}`} />
+      ) : null}
+      {analyticsId ? (
+        <script>
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${String(analyticsId).replace(/'/g, '')}');`}
+        </script>
+      ) : null}
     </Helmet>
   )
 }

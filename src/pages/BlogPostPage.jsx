@@ -1,9 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
-import { getBlogPostBySlug } from '../data/blogPosts'
-import {
-  getProductBySlug,
-  toStorefrontProduct,
-} from '../data/catalog'
+import { useCatalog } from '../context/CatalogProvider'
+import { useStoreContent } from '../context/StoreContentProvider'
+import { toStorefrontProduct } from '../data/catalog'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -11,9 +9,18 @@ import NotFoundPage from './NotFoundPage'
 
 export default function BlogPostPage() {
   const { slug } = useParams()
+  const { getBlogPostBySlug, blogReady } = useStoreContent()
+  const { getProductBySlug } = useCatalog()
   const post = getBlogPostBySlug(slug)
 
-  if (!post) return <NotFoundPage />
+  if (blogReady && !post) return <NotFoundPage />
+  if (!post) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center text-sm text-muted">
+        Loading post…
+      </div>
+    )
+  }
 
   const relatedProducts = (post.relatedProductSlugs || [])
     .map((s) => getProductBySlug(s))
@@ -44,21 +51,25 @@ export default function BlogPostPage() {
         {post.title}
       </h1>
       <p className="mt-3 text-sm text-muted">
-        {post.author} ·{' '}
-        {new Date(post.publishedAt).toLocaleDateString('en-IN', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}
+        {post.author}
+        {post.publishedAt
+          ? ` · ${new Date(post.publishedAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}`
+          : ''}
       </p>
-      <img
-        src={post.featuredImage}
-        alt=""
-        className="mt-6 aspect-[16/9] w-full rounded-2xl object-cover shadow-card"
-      />
+      {post.featuredImage ? (
+        <img
+          src={post.featuredImage}
+          alt=""
+          className="mt-6 aspect-[16/9] w-full rounded-2xl object-cover shadow-card"
+        />
+      ) : null}
       <div
         className="prose-pet mt-8 space-y-4 text-sm leading-relaxed text-ink-soft sm:text-base [&_strong]:text-ink"
-        dangerouslySetInnerHTML={{ __html: post.content }}
+        dangerouslySetInnerHTML={{ __html: post.content || '' }}
       />
 
       {post.relatedCategorySlugs?.length > 0 && (

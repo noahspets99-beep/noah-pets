@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
-import { shippingSettings } from '../data/shippingTax'
+import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
 import { decreaseStockForCartItems } from '../services/inventoryService'
 import { invalidateCatalogCache } from './CatalogProvider'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
 import { useCatalog } from './CatalogProvider'
+import { useStoreContent } from './StoreContentProvider'
 import { useAuth } from './useAuth'
 import {
   listCollection,
@@ -42,13 +43,20 @@ function calcTax(subtotal, ratePercent) {
   return Math.round((subtotal * rate) / 100)
 }
 
-function calcShipping(subtotal) {
-  if (subtotal >= shippingSettings.freeShippingMinOrder) return 0
-  return shippingSettings.standardShippingFee
+function calcShipping(subtotal, settings) {
+  const freeMin =
+    Number(settings?.freeShippingMinOrder) ||
+    seedShippingSettings.freeShippingMinOrder
+  const fee =
+    Number(settings?.standardShippingFee) ||
+    seedShippingSettings.standardShippingFee
+  if (subtotal >= freeMin) return 0
+  return fee
 }
 
 export function ShopProvider({ children }) {
   const { coupons: liveCoupons } = useCatalog()
+  const { shippingSettings: liveShipping } = useStoreContent()
   const { user, isAuthenticated } = useAuth()
   const [cart, setCart] = useState(() => loadJson(CART_KEY, []))
   const [wishlist, setWishlist] = useState(() => loadJson(WISHLIST_KEY, []))
@@ -328,8 +336,12 @@ export function ShopProvider({ children }) {
   }, [appliedCoupon, cartSubtotal])
 
   const shipping = useMemo(
-    () => calcShipping(Math.max(0, cartSubtotal - couponDiscount)),
-    [cartSubtotal, couponDiscount],
+    () =>
+      calcShipping(
+        Math.max(0, cartSubtotal - couponDiscount),
+        liveShipping || seedShippingSettings,
+      ),
+    [cartSubtotal, couponDiscount, liveShipping],
   )
 
   const tax = useMemo(

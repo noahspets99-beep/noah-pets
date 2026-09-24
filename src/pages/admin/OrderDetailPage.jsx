@@ -6,12 +6,14 @@ import {
   Circle,
   CreditCard,
   MapPin,
+  Printer,
   User,
 } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
 import Modal from '../../admin/components/Modal'
 import { formatDateTime, formatINR } from '../../admin/utils'
+import { printAdminOrder } from '../../admin/printOrder'
 import { ORDER_STATUSES } from '../../lib/orderStatus'
 import { useAdminStore } from '../../context/AdminStore'
 
@@ -73,6 +75,14 @@ export default function OrderDetailPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={order.status} />
+            <button
+              type="button"
+              onClick={() => printAdminOrder(order)}
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-surface"
+            >
+              <Printer className="h-4 w-4" />
+              Print Order
+            </button>
             <select
               value={order.status}
               onChange={(e) => handleStatusSelect(e.target.value)}

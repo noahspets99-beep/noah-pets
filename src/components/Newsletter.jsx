@@ -18,7 +18,7 @@ export default function Newsletter() {
         <div className="rounded-[1.75rem] border border-brand-100 bg-gradient-to-br from-white via-brand-50 to-sky-50 px-6 py-8 sm:px-10 sm:py-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
           <div className="max-w-lg">
             <h2 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-              Get More Tail Wags.
+            Stay Connected with Noah’s Pets.
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
               Join our pet-loving community and get exclusive offers, product

@@ -8,7 +8,10 @@ import {
   initialAdminNotifications,
   initialAdminSettings,
 } from '../data/adminDashboard'
-import { homepageSections as seedHomepageSections } from '../data/homepageSections'
+import {
+  cloneHomepageSections,
+  mergeHomepageSections,
+} from '../data/homepageSections'
 import {
   shippingSettings as seedShippingSettings,
   taxSettings as seedTaxSettings,
@@ -86,10 +89,7 @@ function mapCatalogToAdmin(p) {
     bestseller: !!p.bestseller,
     newArrival: !!p.newArrival,
     active: p.active !== false,
-    sales:
-      typeof p.reviews === 'number'
-        ? Math.min(p.reviews, 999)
-        : Number(p.sales) || 0,
+    sales: Number(p.sales) || 0,
     createdAt: p.createdAt || null,
     updatedAt: p.updatedAt || null,
     variants: (p.variants || []).map((v) => ({
@@ -253,6 +253,25 @@ function normalizeCustomer(raw) {
   }
 }
 
+function normalizeAdminReview(raw) {
+  if (!raw) return null
+  return {
+    ...raw,
+    id: raw.id,
+    productId: raw.productId || raw.productDocId || '',
+    product:
+      raw.product ||
+      raw.productName ||
+      raw.productTitle ||
+      '',
+    customer: raw.customer || raw.customerName || raw.name || 'Customer',
+    review: raw.review || raw.text || raw.comment || '',
+    rating: Number(raw.rating) || 0,
+    date: raw.date || raw.createdAt || raw.updatedAt || null,
+    status: raw.status || 'Pending',
+  }
+}
+
 function addressFromOrder(order) {
   const ship = order?.shippingAddress || order?.customer || null
   if (!ship || typeof ship !== 'object') return null
@@ -381,6 +400,7 @@ export function AdminStoreProvider({ children }) {
   const [orders, setOrders] = useState([])
   const [customers, setCustomers] = useState([])
   const [reviews, setReviews] = useState([])
+  const [brands, setBrands] = useState([])
   const [coupons, setCoupons] = useState([])
   const [banners, setBanners] = useState([])
   const [settings, setSettings] = useState(initialAdminSettings)
@@ -392,7 +412,7 @@ export function AdminStoreProvider({ children }) {
     ordersReady: false,
   })
   const [homepageSections, setHomepageSections] = useState(() =>
-    seedHomepageSections.map((s) => ({ ...s, config: { ...s.config } })),
+    cloneHomepageSections(),
   )
   const [seoSettings, setSeoSettings] = useState(buildInitialSeoSettings)
   const [shippingSettings, setShippingSettings] = useState(() => ({
@@ -409,7 +429,9 @@ export function AdminStoreProvider({ children }) {
     })),
   }))
   const [blogPosts, setBlogPosts] = useState(() =>
-    seedBlogPosts.map(normalizeBlogPost),
+    isFirebaseConfigured
+      ? []
+      : seedBlogPosts.map(normalizeBlogPost),
   )
   const [payments, setPayments] = useState([])
   const [paymentSettings] = useState({
@@ -449,6 +471,11 @@ export function AdminStoreProvider({ children }) {
           bannerRes,
           taxRes,
           shippingRes,
+          blogRes,
+          seoRes,
+          homepageRes,
+          settingsRes,
+          brandRes,
         ] = await Promise.all([
           listCollection('products'),
           listCollection('categories'),
@@ -458,6 +485,11 @@ export function AdminStoreProvider({ children }) {
           listCollection('banners'),
           getDocument('taxSettings', 'default'),
           getDocument('shippingSettings', 'default'),
+          listCollection('blogPosts'),
+          getDocument('seoSettings', 'default'),
+          listCollection('homepageSections'),
+          getDocument('storeSettings', 'default'),
+          listCollection('brands'),
         ])
 
         if (cancelled) return
@@ -487,7 +519,17 @@ export function AdminStoreProvider({ children }) {
 
         if (reviewRes.mode === 'firestore') {
           setReviews(
-            (reviewRes.data || []).filter((r) => r.status !== 'Deleted'),
+            (reviewRes.data || [])
+              .filter((r) => r.status !== 'Deleted')
+              .map(normalizeAdminReview),
+          )
+        }
+
+        if (brandRes.mode === 'firestore') {
+          setBrands(
+            (brandRes.data || []).sort(
+              (a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0),
+            ),
           )
         }
 
@@ -495,6 +537,32 @@ export function AdminStoreProvider({ children }) {
           setBanners(bannerRes.data || [])
         } else {
           setBanners([])
+        }
+
+        if (blogRes.mode === 'firestore') {
+          setBlogPosts(
+            (blogRes.data || [])
+              .map(normalizeBlogPost)
+              .sort(
+                (a, b) =>
+                  new Date(b.publishedAt || b.updatedAt || 0) -
+                  new Date(a.publishedAt || a.updatedAt || 0),
+              ),
+          )
+        }
+
+        if (seoRes.mode === 'firestore' && seoRes.data) {
+          const { id: _seoId, ...seoData } = seoRes.data
+          setSeoSettings((prev) => ({
+            ...prev,
+            ...seoData,
+            homepage: { ...prev.homepage, ...(seoData.homepage || {}) },
+            defaults: { ...prev.defaults, ...(seoData.defaults || {}) },
+            social: { ...prev.social, ...(seoData.social || {}) },
+            locationSeo: Array.isArray(seoData.locationSeo)
+              ? seoData.locationSeo
+              : prev.locationSeo,
+          }))
         }
 
         if (taxRes.mode === 'firestore' && taxRes.data) {
@@ -515,6 +583,38 @@ export function AdminStoreProvider({ children }) {
             ...prev,
             ...shipData,
           }))
+        }
+
+        if (homepageRes.mode === 'firestore') {
+          const remote = homepageRes.data || []
+          const merged = mergeHomepageSections(remote)
+          setHomepageSections(merged)
+          // Persist seed docs once so storefront and admin share the same source
+          if (remote.length === 0 && isFirebaseConfigured) {
+            Promise.all(
+              merged.map((s) =>
+                upsertDocument(
+                  'homepageSections',
+                  s.id,
+                  stripUndefined({
+                    key: s.key,
+                    title: s.title,
+                    enabled: s.enabled !== false,
+                    sortOrder: Number(s.sortOrder) || 0,
+                    config: s.config || {},
+                    updatedAt: new Date().toISOString(),
+                  }),
+                ),
+              ),
+            ).catch((err) =>
+              console.warn('[admin] homepageSections seed', err?.message || err),
+            )
+          }
+        }
+
+        if (settingsRes.mode === 'firestore' && settingsRes.data) {
+          const { id: _setId, ...settingsData } = settingsRes.data
+          setSettings((prev) => ({ ...prev, ...settingsData }))
         }
 
         unsubOrders = subscribeCollection('orders', [], {
@@ -877,6 +977,65 @@ export function AdminStoreProvider({ children }) {
     [pushToast],
   )
 
+  const createReview = useCallback(
+    async (data) => {
+      const productId = String(data.productId || '').trim()
+      if (!productId) {
+        pushToast('Select a product for this review', 'error')
+        throw new Error('productId required')
+      }
+      const id = data.id || uid('rev')
+      const now = new Date().toISOString()
+      const review = normalizeAdminReview({
+        id,
+        productId,
+        product: data.product || data.productName || '',
+        customer: data.customer || data.name || 'Customer',
+        review: data.review || data.text || '',
+        rating: Number(data.rating) || 5,
+        status: data.status || 'Approved',
+        date: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      try {
+        await upsertDocument('reviews', id, stripUndefined(review))
+        setReviews((prev) => [review, ...prev])
+        pushToast('Review added')
+        return review
+      } catch (err) {
+        pushToast(err?.message || 'Failed to add review', 'error')
+        throw err
+      }
+    },
+    [pushToast],
+  )
+
+  const updateReview = useCallback(
+    async (id, data) => {
+      const patch = {
+        ...data,
+        productId: data.productId ? String(data.productId).trim() : undefined,
+        rating:
+          data.rating !== undefined ? Number(data.rating) || 0 : undefined,
+        updatedAt: new Date().toISOString(),
+      }
+      try {
+        await upsertDocument('reviews', id, stripUndefined(patch))
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.id === id ? normalizeAdminReview({ ...r, ...patch }) : r,
+          ),
+        )
+        pushToast('Review updated')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to update review', 'error')
+        throw err
+      }
+    },
+    [pushToast],
+  )
+
   const deleteReview = useCallback(
     async (id) => {
       try {
@@ -885,6 +1044,85 @@ export function AdminStoreProvider({ children }) {
         pushToast('Review removed')
       } catch (err) {
         pushToast(err?.message || 'Failed to delete review', 'error')
+      }
+    },
+    [pushToast],
+  )
+
+  const createBrand = useCallback(
+    async (data) => {
+      const id = data.id || uid('br')
+      const brand = {
+        id,
+        name: String(data.name || '').trim(),
+        slug: data.slug || '',
+        logo: data.logo || data.image || '',
+        image: data.image || data.logo || '',
+        active: data.active !== false && data.status !== 'Inactive',
+        status: data.status || (data.active === false ? 'Inactive' : 'Active'),
+        sortOrder: Number(data.sortOrder) || 0,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      }
+      try {
+        await upsertDocument('brands', id, stripUndefined(brand))
+        setBrands((prev) =>
+          [...prev, brand].sort(
+            (a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0),
+          ),
+        )
+        pushToast('Brand created')
+        return brand
+      } catch (err) {
+        pushToast(err?.message || 'Failed to create brand', 'error')
+        throw err
+      }
+    },
+    [pushToast],
+  )
+
+  const updateBrand = useCallback(
+    async (id, data) => {
+      const patch = {
+        ...data,
+        active:
+          data.active !== undefined
+            ? data.active
+            : data.status !== 'Inactive',
+        status:
+          data.status ||
+          (data.active === false ? 'Inactive' : undefined),
+        updatedAt: new Date().toISOString(),
+      }
+      if (patch.logo && !patch.image) patch.image = patch.logo
+      if (patch.image && !patch.logo) patch.logo = patch.image
+      try {
+        await upsertDocument('brands', id, stripUndefined(patch))
+        setBrands((prev) =>
+          prev
+            .map((b) => (b.id === id ? { ...b, ...patch } : b))
+            .sort(
+              (a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0),
+            ),
+        )
+        pushToast('Brand updated')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to update brand', 'error')
+        throw err
+      }
+    },
+    [pushToast],
+  )
+
+  const deleteBrand = useCallback(
+    async (id) => {
+      try {
+        await removeDocument('brands', id)
+        setBrands((prev) => prev.filter((b) => b.id !== id))
+        pushToast('Brand deleted')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to delete brand', 'error')
+        throw err
       }
     },
     [pushToast],
@@ -952,49 +1190,104 @@ export function AdminStoreProvider({ children }) {
 
   const saveSettings = useCallback(
     async (data) => {
-      await delay(300)
-      setSettings((prev) => ({ ...prev, ...data }))
-      pushToast('Settings saved')
+      const next = { ...data }
+      try {
+        if (isFirebaseConfigured) {
+          await upsertDocument('storeSettings', 'default', stripUndefined(next))
+        }
+        setSettings((prev) => ({ ...prev, ...next }))
+        pushToast('Settings saved')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to save settings', 'error')
+        throw err
+      }
     },
     [pushToast],
   )
 
+  const persistHomepageSection = useCallback(async (section) => {
+    if (!isFirebaseConfigured || !section?.id) return
+    await upsertDocument(
+      'homepageSections',
+      section.id,
+      stripUndefined({
+        key: section.key,
+        title: section.title,
+        enabled: section.enabled !== false,
+        sortOrder: Number(section.sortOrder) || 0,
+        config: section.config || {},
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+  }, [])
+
   const updateHomepageSection = useCallback(
     async (id, data) => {
-      await delay(200)
+      const existing = homepageSections.find((s) => s.id === id)
+      if (!existing) {
+        pushToast('Section not found', 'error')
+        return
+      }
+      const updated = {
+        ...existing,
+        ...data,
+        config: data.config !== undefined ? data.config : existing.config,
+      }
       setHomepageSections((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...data } : s)),
+        prev.map((s) => (s.id === id ? updated : s)),
       )
-      pushToast('Homepage section updated')
+      try {
+        await persistHomepageSection(updated)
+        pushToast('Homepage section updated')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to update homepage section', 'error')
+        throw err
+      }
     },
-    [pushToast],
+    [homepageSections, persistHomepageSection, pushToast],
   )
 
   const reorderHomepageSections = useCallback(
     async (id, direction) => {
-      await delay(150)
-      setHomepageSections((prev) => {
-        const sorted = [...prev].sort((a, b) => a.sortOrder - b.sortOrder)
-        const idx = sorted.findIndex((s) => s.id === id)
-        if (idx < 0) return prev
-        const swapWith = direction === 'up' ? idx - 1 : idx + 1
-        if (swapWith < 0 || swapWith >= sorted.length) return prev
-        const a = sorted[idx]
-        const b = sorted[swapWith]
-        const aOrder = a.sortOrder
-        sorted[idx] = { ...a, sortOrder: b.sortOrder }
-        sorted[swapWith] = { ...b, sortOrder: aOrder }
-        return sorted
+      const sorted = [...homepageSections].sort(
+        (a, b) => a.sortOrder - b.sortOrder,
+      )
+      const idx = sorted.findIndex((s) => s.id === id)
+      if (idx < 0) return
+      const swapWith = direction === 'up' ? idx - 1 : idx + 1
+      if (swapWith < 0 || swapWith >= sorted.length) return
+
+      const a = sorted[idx]
+      const b = sorted[swapWith]
+      const nextA = { ...a, sortOrder: b.sortOrder }
+      const nextB = { ...b, sortOrder: a.sortOrder }
+      const next = sorted.map((s) => {
+        if (s.id === nextA.id) return nextA
+        if (s.id === nextB.id) return nextB
+        return s
       })
-      pushToast('Section order updated')
+      setHomepageSections(next)
+      try {
+        await Promise.all([
+          persistHomepageSection(nextA),
+          persistHomepageSection(nextB),
+        ])
+        pushToast('Section order updated')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to reorder sections', 'error')
+        throw err
+      }
     },
-    [pushToast],
+    [homepageSections, persistHomepageSection, pushToast],
   )
 
   const saveSeoSettings = useCallback(
     async (data) => {
-      await delay(300)
-      setSeoSettings((prev) => ({ ...prev, ...data }))
+      const next = { ...data }
+      if (isFirebaseConfigured) {
+        await upsertDocument('seoSettings', 'default', stripUndefined(next))
+      }
+      setSeoSettings((prev) => ({ ...prev, ...next }))
       pushToast('SEO settings saved')
     },
     [pushToast],
@@ -1029,16 +1322,23 @@ export function AdminStoreProvider({ children }) {
 
   const createBlogPost = useCallback(
     async (data) => {
-      await delay(250)
+      const id = uid('b')
+      const now = new Date().toISOString()
       const post = normalizeBlogPost({
         ...data,
-        id: uid('b'),
+        id,
+        status: data.status || 'Draft',
+        createdAt: now,
+        updatedAt: now,
         seo: {
           title: data.seoTitle || data.title,
           description: data.seoDescription || data.excerpt,
           keywords: data.seoKeywords || '',
         },
       })
+      if (isFirebaseConfigured) {
+        await upsertDocument('blogPosts', id, stripUndefined(post))
+      }
       setBlogPosts((prev) => [post, ...prev])
       pushToast('Blog post created')
       return post
@@ -1048,34 +1348,40 @@ export function AdminStoreProvider({ children }) {
 
   const updateBlogPost = useCallback(
     async (id, data) => {
-      await delay(250)
-      setBlogPosts((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? normalizeBlogPost({
-                ...p,
-                ...data,
-                seo: {
-                  title: data.seoTitle ?? p.seoTitle ?? p.seo?.title,
-                  description:
-                    data.seoDescription ??
-                    p.seoDescription ??
-                    p.seo?.description,
-                  keywords:
-                    data.seoKeywords ?? p.seoKeywords ?? p.seo?.keywords,
-                },
-              })
-            : p,
-        ),
-      )
+      const current = blogPosts.find((p) => p.id === id)
+      if (!current) {
+        pushToast('Blog post not found', 'error')
+        return
+      }
+      const next = normalizeBlogPost({
+        ...current,
+        ...data,
+        id,
+        updatedAt: new Date().toISOString(),
+        seo: {
+          title: data.seoTitle ?? current.seoTitle ?? current.seo?.title,
+          description:
+            data.seoDescription ??
+            current.seoDescription ??
+            current.seo?.description,
+          keywords:
+            data.seoKeywords ?? current.seoKeywords ?? current.seo?.keywords,
+        },
+      })
+      if (isFirebaseConfigured) {
+        await upsertDocument('blogPosts', id, stripUndefined(next))
+      }
+      setBlogPosts((prev) => prev.map((p) => (p.id === id ? next : p)))
       pushToast('Blog post updated')
     },
-    [pushToast],
+    [blogPosts, pushToast],
   )
 
   const deleteBlogPost = useCallback(
     async (id) => {
-      await delay(200)
+      if (isFirebaseConfigured) {
+        await removeDocument('blogPosts', id)
+      }
       setBlogPosts((prev) => prev.filter((p) => p.id !== id))
       pushToast('Blog post deleted')
     },
@@ -1086,6 +1392,7 @@ export function AdminStoreProvider({ children }) {
     () => ({
       products,
       categories,
+      brands,
       orders,
       customers,
       reviews,
@@ -1118,7 +1425,12 @@ export function AdminStoreProvider({ children }) {
       createCategory,
       updateCategory,
       deleteCategory,
+      createBrand,
+      updateBrand,
+      deleteBrand,
       updateOrderStatus,
+      createReview,
+      updateReview,
       updateReviewStatus,
       deleteReview,
       createCoupon,
@@ -1140,6 +1452,7 @@ export function AdminStoreProvider({ children }) {
     [
       products,
       categories,
+      brands,
       orders,
       customers,
       reviews,
@@ -1170,7 +1483,12 @@ export function AdminStoreProvider({ children }) {
       createCategory,
       updateCategory,
       deleteCategory,
+      createBrand,
+      updateBrand,
+      deleteBrand,
       updateOrderStatus,
+      createReview,
+      updateReview,
       updateReviewStatus,
       deleteReview,
       createCoupon,

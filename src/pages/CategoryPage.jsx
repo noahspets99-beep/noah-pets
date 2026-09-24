@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { catalogBrands } from '../data/catalog'
-import { blogPosts } from '../data/blogPosts'
+import { useStoreContent } from '../context/StoreContentProvider'
 import { absoluteUrl } from '../lib/slug'
 import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from '../components/ProductCard'
@@ -29,6 +29,7 @@ export default function CategoryPage() {
     getProductsByCategorySlug,
     getProductsByPetType,
   } = useCatalog()
+  const { blogPosts } = useStoreContent()
   const [brand, setBrand] = useState('All')
   const [sort, setSort] = useState('popular')
   const [page, setPage] = useState(1)

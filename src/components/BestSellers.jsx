@@ -2,9 +2,14 @@ import { useCatalog } from '../context/CatalogProvider'
 import ProductCard from './ProductCard'
 import SectionHeader from './SectionHeader'
 
-export default function BestSellers() {
+export default function BestSellers({ config = {} }) {
   const { products } = useCatalog()
-  const bestsellers = products.filter((p) => p.badge === 'Bestseller')
+  const limit = Number(config.limit) || 8
+  const bestsellers = products
+    .filter((p) => p.bestseller || p.badge === 'Bestseller')
+    .slice(0, limit)
+
+  if (bestsellers.length === 0) return null
 
   return (
     <section className="bg-surface py-12 sm:py-16">
