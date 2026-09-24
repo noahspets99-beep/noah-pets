@@ -10,11 +10,10 @@ export default function LocationPage() {
   const { citySlug } = useParams()
   const { seoSettings, shippingSettings } = useStoreContent()
 
-  const fromAdmin = (shippingSettings?.priorityCities || [])
-    .map(toStorefrontPriorityCity)
-    .filter(Boolean)
-
-  const pool = fromAdmin.length > 0 ? fromAdmin : TN_PRIORITY_CITIES
+  const rawPriority = shippingSettings?.priorityCities
+  const pool = Array.isArray(rawPriority)
+    ? rawPriority.map(toStorefrontPriorityCity).filter(Boolean)
+    : TN_PRIORITY_CITIES
   const city = pool.find((c) => c.slug === citySlug)
 
   if (!city) return <NotFoundPage />

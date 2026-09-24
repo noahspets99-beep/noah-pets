@@ -5,8 +5,13 @@ import { toStorefrontPriorityCity } from '../data/indiaCities'
 import { useStoreContent } from '../context/StoreContentProvider'
 import SectionHeader from './SectionHeader'
 
+/**
+ * Priority Cities on the Homepage — Admin shippingSettings.priorityCities
+ * is the single source of truth (enable/disable/order included).
+ * Hardcoded TN list is only a last-resort offline fallback.
+ */
 export default function DeliveryTNSection({ config = {} }) {
-  const { shippingSettings } = useStoreContent()
+  const { shippingSettings, shippingReady } = useStoreContent()
   const freeMin =
     Number(config.freeShippingMin) ||
     Number(shippingSettings?.freeShippingMinOrder) ||
@@ -17,25 +22,19 @@ export default function DeliveryTNSection({ config = {} }) {
       ? `${shippingSettings.standardEtaDays} business days across India`
       : '2–5 business days across India')
 
-  const cityNames = Array.isArray(config.cities) ? config.cities : []
+  const rawPriority = shippingSettings?.priorityCities
+  const hasAdminList = Array.isArray(rawPriority)
 
-  const fromAdmin = (shippingSettings?.priorityCities || [])
-    .map(toStorefrontPriorityCity)
-    .filter(Boolean)
+  const displayCities = hasAdminList
+    ? rawPriority.map(toStorefrontPriorityCity).filter(Boolean)
+    : TN_PRIORITY_CITIES
 
-  const pool = fromAdmin.length > 0 ? fromAdmin : TN_PRIORITY_CITIES
+  // Hide section when Admin has explicitly saved an empty/disabled-only list
+  if (shippingReady && hasAdminList && displayCities.length === 0) {
+    return null
+  }
 
-  const cities =
-    cityNames.length > 0
-      ? pool.filter((c) =>
-          cityNames.some(
-            (n) =>
-              String(n).toLowerCase() === String(c.name).toLowerCase(),
-          ),
-        )
-      : pool
-
-  const displayCities = cities.length > 0 ? cities : TN_PRIORITY_CITIES
+  if (displayCities.length === 0) return null
 
   return (
     <section className="bg-white py-12 sm:py-16">

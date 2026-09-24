@@ -590,11 +590,9 @@ export function AdminStoreProvider({ children }) {
           setShippingSettings((prev) => ({
             ...prev,
             ...shipData,
-            priorityCities: normalizePriorityCities(
-              shipData.priorityCities?.length
-                ? shipData.priorityCities
-                : prev.priorityCities,
-            ),
+            priorityCities: Array.isArray(shipData.priorityCities)
+              ? normalizePriorityCities(shipData.priorityCities)
+              : prev.priorityCities,
             serviceableStates:
               Array.isArray(shipData.serviceableStates) &&
               shipData.serviceableStates.length

@@ -172,11 +172,10 @@ export function StoreContentProvider({ children }) {
           setShippingSettings((prev) => ({
             ...prev,
             ...rest,
-            priorityCities: normalizePriorityCities(
-              rest.priorityCities?.length
-                ? rest.priorityCities
-                : prev.priorityCities,
-            ),
+            // Empty array is a valid Admin clear — do not keep stale seed cities
+            priorityCities: Array.isArray(rest.priorityCities)
+              ? normalizePriorityCities(rest.priorityCities)
+              : prev.priorityCities,
           }))
         }
         setShippingReady(true)

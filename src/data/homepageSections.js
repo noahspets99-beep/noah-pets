@@ -180,7 +180,6 @@ export const homepageSections = [
     enabled: true,
     sortOrder: 16,
     config: {
-      cities: ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli'],
       freeShippingMin: 999,
       etaText: '2–5 business days across India',
     },
@@ -249,15 +248,20 @@ export function mergeHomepageSections(remoteRows = []) {
   const merged = seed.map((s) => {
     const remote = byId.get(s.id) || byKey.get(s.key)
     if (!remote) return s
+    const mergedConfig = {
+      ...(s.config || {}),
+      ...(remote.config && typeof remote.config === 'object' ? remote.config : {}),
+    }
+    // Priority Cities live in shippingSettings — do not keep a stale city allowlist here
+    if (s.key === 'deliveryTN' && mergedConfig.cities) {
+      delete mergedConfig.cities
+    }
     return {
       ...s,
       ...remote,
       id: s.id,
       key: s.key,
-      config: {
-        ...(s.config || {}),
-        ...(remote.config && typeof remote.config === 'object' ? remote.config : {}),
-      },
+      config: mergedConfig,
       enabled: remote.enabled !== false,
       sortOrder: Number(remote.sortOrder) || s.sortOrder,
       title: remote.title || s.title,
