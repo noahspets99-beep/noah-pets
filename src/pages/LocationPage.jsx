@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { TN_PRIORITY_CITIES } from '../config/store'
+import { toStorefrontPriorityCity } from '../data/indiaCities'
 import { catalogCategories } from '../data/catalog'
 import SeoHead from '../components/seo/SeoHead'
 import { useStoreContent } from '../context/StoreContentProvider'
@@ -7,8 +8,14 @@ import NotFoundPage from './NotFoundPage'
 
 export default function LocationPage() {
   const { citySlug } = useParams()
-  const city = TN_PRIORITY_CITIES.find((c) => c.slug === citySlug)
-  const { seoSettings } = useStoreContent()
+  const { seoSettings, shippingSettings } = useStoreContent()
+
+  const fromAdmin = (shippingSettings?.priorityCities || [])
+    .map(toStorefrontPriorityCity)
+    .filter(Boolean)
+
+  const pool = fromAdmin.length > 0 ? fromAdmin : TN_PRIORITY_CITIES
+  const city = pool.find((c) => c.slug === citySlug)
 
   if (!city) return <NotFoundPage />
 

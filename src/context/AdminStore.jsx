@@ -16,6 +16,10 @@ import {
   shippingSettings as seedShippingSettings,
   taxSettings as seedTaxSettings,
 } from '../data/shippingTax'
+import {
+  INDIA_STATES_AND_UTS,
+  normalizePriorityCities,
+} from '../data/indiaCities'
 import { blogPosts as seedBlogPosts } from '../data/blogPosts'
 import { DEFAULT_SEO, TN_PRIORITY_CITIES } from '../config/store'
 import { delay } from '../admin/utils'
@@ -417,8 +421,12 @@ export function AdminStoreProvider({ children }) {
   const [seoSettings, setSeoSettings] = useState(buildInitialSeoSettings)
   const [shippingSettings, setShippingSettings] = useState(() => ({
     ...seedShippingSettings,
-    priorityCities: seedShippingSettings.priorityCities.map((c) => ({ ...c })),
-    serviceableStates: [...seedShippingSettings.serviceableStates],
+    priorityCities: normalizePriorityCities(seedShippingSettings.priorityCities),
+    serviceableStates: [
+      ...(seedShippingSettings.serviceableStates?.length
+        ? seedShippingSettings.serviceableStates
+        : INDIA_STATES_AND_UTS),
+    ],
   }))
   const [taxSettings, setTaxSettings] = useState(() => ({
     ...seedTaxSettings,
@@ -582,6 +590,18 @@ export function AdminStoreProvider({ children }) {
           setShippingSettings((prev) => ({
             ...prev,
             ...shipData,
+            priorityCities: normalizePriorityCities(
+              shipData.priorityCities?.length
+                ? shipData.priorityCities
+                : prev.priorityCities,
+            ),
+            serviceableStates:
+              Array.isArray(shipData.serviceableStates) &&
+              shipData.serviceableStates.length
+                ? shipData.serviceableStates
+                : prev.serviceableStates?.length
+                  ? prev.serviceableStates
+                  : [...INDIA_STATES_AND_UTS],
           }))
         }
 
@@ -1295,7 +1315,14 @@ export function AdminStoreProvider({ children }) {
 
   const saveShippingSettings = useCallback(
     async (data) => {
-      const next = { ...data }
+      const next = {
+        ...data,
+        priorityCities: normalizePriorityCities(data.priorityCities),
+        serviceableStates:
+          Array.isArray(data.serviceableStates) && data.serviceableStates.length
+            ? data.serviceableStates
+            : [...INDIA_STATES_AND_UTS],
+      }
       if (isFirebaseConfigured) {
         await upsertDocument('shippingSettings', 'default', stripUndefined(next))
       }

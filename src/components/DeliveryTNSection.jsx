@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
 import { TN_PRIORITY_CITIES } from '../config/store'
+import { toStorefrontPriorityCity } from '../data/indiaCities'
 import { useStoreContent } from '../context/StoreContentProvider'
 import SectionHeader from './SectionHeader'
 
@@ -17,14 +18,22 @@ export default function DeliveryTNSection({ config = {} }) {
       : '2–5 business days across India')
 
   const cityNames = Array.isArray(config.cities) ? config.cities : []
+
+  const fromAdmin = (shippingSettings?.priorityCities || [])
+    .map(toStorefrontPriorityCity)
+    .filter(Boolean)
+
+  const pool = fromAdmin.length > 0 ? fromAdmin : TN_PRIORITY_CITIES
+
   const cities =
     cityNames.length > 0
-      ? TN_PRIORITY_CITIES.filter((c) =>
+      ? pool.filter((c) =>
           cityNames.some(
-            (n) => String(n).toLowerCase() === String(c.name).toLowerCase(),
+            (n) =>
+              String(n).toLowerCase() === String(c.name).toLowerCase(),
           ),
         )
-      : TN_PRIORITY_CITIES
+      : pool
 
   const displayCities = cities.length > 0 ? cities : TN_PRIORITY_CITIES
 

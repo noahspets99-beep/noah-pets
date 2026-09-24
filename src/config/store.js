@@ -40,7 +40,7 @@ export function formatStoreAddress() {
   return STORE.fullAddress
 }
 
-/** Priority Tamil Nadu cities for local SEO (useful content pages only). */
+/** Priority cities fallback for local SEO / sitemap when Firestore is empty. */
 export const TN_PRIORITY_CITIES = [
   {
     slug: 'chennai',

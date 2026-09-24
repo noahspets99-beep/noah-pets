@@ -14,6 +14,9 @@ import {
 import { DEFAULT_SEO } from '../config/store'
 import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
 import {
+  normalizePriorityCities,
+} from '../data/indiaCities'
+import {
   fsQuery,
   isFirebaseConfigured,
   subscribeCollection,
@@ -79,6 +82,7 @@ export function StoreContentProvider({ children }) {
   const [homepageReady, setHomepageReady] = useState(!isFirebaseConfigured)
   const [shippingSettings, setShippingSettings] = useState(() => ({
     ...seedShippingSettings,
+    priorityCities: normalizePriorityCities(seedShippingSettings.priorityCities),
   }))
   const [shippingReady, setShippingReady] = useState(!isFirebaseConfigured)
   const [approvedReviews, setApprovedReviews] = useState([])
@@ -165,7 +169,15 @@ export function StoreContentProvider({ children }) {
         if (cancelled) return
         if (docData) {
           const { id: _id, ...rest } = docData
-          setShippingSettings((prev) => ({ ...prev, ...rest }))
+          setShippingSettings((prev) => ({
+            ...prev,
+            ...rest,
+            priorityCities: normalizePriorityCities(
+              rest.priorityCities?.length
+                ? rest.priorityCities
+                : prev.priorityCities,
+            ),
+          }))
         }
         setShippingReady(true)
       },
