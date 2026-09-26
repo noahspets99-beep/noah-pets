@@ -30,9 +30,22 @@ export function safeEqual(a, b) {
 }
 
 export function generateOrderId() {
-  // Exactly 6 numeric digits (000000–999999), zero-padded.
-  const n = randomBytes(4).readUInt32BE(0) % 1_000_000
-  return String(n).padStart(6, '0')
+  // Exactly 6 numeric digits in the range 100000–999999 (no leading zeros).
+  // Avoids JSON/number coercion bugs while remaining a unique customer-facing ID.
+  const n = 100000 + (randomBytes(4).readUInt32BE(0) % 900000)
+  return String(n)
+}
+
+/**
+ * Razorpay `receipt` must be unique per merchant and is NOT the customer order ID.
+ * Keep customer-facing 6-digit IDs in notes.internalOrderId / Firestore doc id only.
+ */
+export function razorpayReceiptForOrder(orderId) {
+  const id = String(orderId || '')
+    .replace(/[^0-9A-Za-z_-]/g, '')
+    .slice(0, 12)
+  const suffix = randomBytes(3).toString('hex')
+  return `np_${id}_${suffix}`.slice(0, 40)
 }
 
 export function publicError(status, code, message) {

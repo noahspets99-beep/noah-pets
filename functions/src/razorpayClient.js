@@ -100,11 +100,15 @@ export async function createRazorpayOrder({ amountPaise, currency, receipt, note
   if (!Number.isInteger(amount) || amount < 100) {
     throw publicError(400, 'invalid_amount', 'Order amount is too low to charge.')
   }
+  const receiptSafe = String(receipt || '').slice(0, 40)
+  if (!receiptSafe) {
+    throw publicError(500, 'invalid_receipt', 'Missing payment receipt reference.')
+  }
   try {
     const order = await rzp.orders.create({
       amount,
       currency: String(currency || 'INR').toUpperCase(),
-      receipt: String(receipt || '').slice(0, 40),
+      receipt: receiptSafe,
       notes: notes || {},
     })
     return order
@@ -114,8 +118,11 @@ export async function createRazorpayOrder({ amountPaise, currency, receipt, note
       statusCode: err?.statusCode || err?.status || null,
       errorCode: err?.error?.code || err?.code || null,
       description: err?.error?.description || err?.message || 'error',
+      field: err?.error?.field || null,
       amount,
-      currency,
+      currency: String(currency || 'INR').toUpperCase(),
+      receiptLength: receiptSafe.length,
+      receiptPrefix: receiptSafe.slice(0, 8),
     })
     throw publicError(502, 'razorpay_create_failed', 'Unable to create payment order.')
   }

@@ -27,7 +27,7 @@ import {
   verifyWebhookSignature,
 } from './razorpayClient.js'
 import { requireAdmin } from './adminAuth.js'
-import { publicError, rupeesToPaise } from './util.js'
+import { publicError, rupeesToPaise, razorpayReceiptForOrder } from './util.js'
 
 function corsOriginAllowlist() {
   const origins = new Set()
@@ -83,7 +83,9 @@ async function attachRazorpayOrder(order) {
   const rzpOrder = await createRazorpayOrder({
     amountPaise,
     currency: order.currency || 'INR',
-    receipt: String(order.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40),
+    // Never use the customer-facing 6-digit ID as Razorpay receipt alone —
+    // receipt must be unique per Razorpay merchant and is separate from order.id
+    receipt: razorpayReceiptForOrder(order.id),
     notes: {
       internalOrderId: String(order.id),
     },
@@ -128,7 +130,7 @@ async function attachRazorpayOrder(order) {
   return {
     provider: 'razorpay',
     keyId,
-    orderId: order.id,
+    orderId: String(order.id),
     paymentOrderId: rzpOrder.id,
     razorpayOrderId: rzpOrder.id,
     amount: order.total,
@@ -310,7 +312,7 @@ export function createApp() {
       })
 
       return res.status(201).json({
-        orderId: order.id,
+        orderId: String(order.id),
         accessToken,
         amount: order.total,
         currency: order.currency,
@@ -385,7 +387,7 @@ export function createApp() {
       const checkout = await attachRazorpayOrder(order)
       return res.status(201).json({
         ...checkout,
-        orderId: order.id,
+        orderId: String(order.id),
         accessToken,
         amount: order.total,
         currency: order.currency,
@@ -393,6 +395,11 @@ export function createApp() {
         status: order.status,
       })
     } catch (err) {
+      console.warn('[checkout/razorpay] failed', {
+        status: err?.status || 500,
+        code: err?.code || 'server_error',
+        message: err?.expose ? err.message : 'hidden',
+      })
       return sendError(res, err)
     }
   })

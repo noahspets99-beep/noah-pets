@@ -212,12 +212,12 @@ export default function CheckoutPage() {
       amountPaise,
       currency,
       customer: form,
-      orderId: paymentOrder.orderId,
+      orderId: String(paymentOrder.orderId),
       description: `Order ${paymentOrder.orderId}`,
     })
 
     const verified = await verifyPayment({
-      orderId: paymentOrder.orderId,
+      orderId: String(paymentOrder.orderId),
       accessToken: paymentOrder.accessToken,
       razorpay_order_id: checkoutResult.razorpay_order_id,
       razorpay_payment_id: checkoutResult.razorpay_payment_id,

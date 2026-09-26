@@ -27,11 +27,11 @@ export async function startRazorpayCheckout(payload) {
     if (err?.status === 404 || err?.status === 405) {
       const pending = await createPendingOrder(payload)
       const paymentOrder = await createPaymentOrder({
-        orderId: pending.orderId,
+        orderId: String(pending.orderId),
         accessToken: pending.accessToken,
         idToken: payload.idToken,
       })
-      return { ...pending, ...paymentOrder }
+      return { ...pending, ...paymentOrder, orderId: String(pending.orderId) }
     }
     if (err?.name === 'AbortError') {
       throw Object.assign(

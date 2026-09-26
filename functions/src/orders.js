@@ -314,12 +314,13 @@ async function persistPaidOrder(order) {
 }
 
 export async function getOrder(orderId) {
-  if (!orderId) return null
+  if (orderId == null || orderId === '') return null
+  const id = String(orderId)
   if (useMemoryStore()) {
-    return memoryOrders.get(orderId) || null
+    return memoryOrders.get(id) || null
   }
   if (!db) initAdmin()
-  const snap = await db.collection('orders').doc(orderId).get()
+  const snap = await db.collection('orders').doc(id).get()
   if (!snap.exists) return null
   return { id: snap.id, ...snap.data() }
 }
@@ -360,15 +361,16 @@ export function assertOrderAccess(order, accessToken, authUid) {
 }
 
 export async function updateOrder(orderId, patch) {
+  const id = String(orderId)
   const updatedAt = new Date().toISOString()
   if (useMemoryStore()) {
-    const current = memoryOrders.get(orderId)
+    const current = memoryOrders.get(id)
     if (!current) throw publicError(404, 'order_not_found', 'Order does not exist.')
     const next = { ...current, ...patch, updatedAt }
-    memoryOrders.set(orderId, next)
+    memoryOrders.set(id, next)
     if (db) {
       try {
-        await db.collection('orders').doc(orderId).set({ ...patch, updatedAt }, { merge: true })
+        await db.collection('orders').doc(id).set({ ...patch, updatedAt }, { merge: true })
       } catch (err) {
         console.warn(
           '[payments] Firestore order update failed',
@@ -379,8 +381,8 @@ export async function updateOrder(orderId, patch) {
     return stripSecrets(next)
   }
   if (!db) initAdmin()
-  await db.collection('orders').doc(orderId).set({ ...patch, updatedAt }, { merge: true })
-  return stripSecrets(await getOrder(orderId))
+  await db.collection('orders').doc(id).set({ ...patch, updatedAt }, { merge: true })
+  return stripSecrets(await getOrder(id))
 }
 
 /**
