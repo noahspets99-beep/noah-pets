@@ -193,6 +193,16 @@ function stripSecrets(order) {
   return safe
 }
 
+function isAlreadyExistsError(err) {
+  const code = err?.code
+  return (
+    code === 6 ||
+    code === 'already-exists' ||
+    code === 'ALREADY_EXISTS' ||
+    /ALREADY_EXISTS/i.test(String(err?.message || ''))
+  )
+}
+
 export async function createPendingOrder({
   lineItems,
   totals,
@@ -201,56 +211,75 @@ export async function createPendingOrder({
   customerId = null,
   writeIdToken = null,
 }) {
-  const orderId = generateOrderId()
   const accessToken = createOrderAccessToken()
   const now = new Date().toISOString()
+  const maxAttempts = 40
 
-  const order = {
-    id: orderId,
-    customerId: customerId || null,
-    customer: customer || null,
-    shippingAddress: shippingAddress || customer || null,
-    items: lineItems,
-    subtotal: totals.subtotal,
-    discount: totals.discount,
-    shipping: totals.shipping,
-    tax: totals.tax,
-    total: totals.total,
-    currency: totals.currency,
-    coupon: totals.coupon,
-    status: 'Pending',
-    paymentStatus: 'Pending',
-    paymentProvider: null,
-    razorpayOrderId: null,
-    razorpayPaymentId: null,
-    paymentMethod: null,
-    paymentAmountPaise: null,
-    verifiedAt: null,
-    inventoryAdjusted: false,
-    createdAt: now,
-    updatedAt: now,
-    accessTokenHash: hashToken(accessToken),
-    _writeIdToken: writeIdToken || null,
-    timeline: [
-      { label: 'Pending', at: now, done: true },
-      { label: 'Confirmed', at: null, done: false },
-      { label: 'Delivered', at: null, done: false },
-    ],
-  }
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const orderId = generateOrderId()
+    if (memoryOrders.has(orderId)) continue
 
-  memoryOrders.set(orderId, order)
+    const order = {
+      id: orderId,
+      customerId: customerId || null,
+      customer: customer || null,
+      shippingAddress: shippingAddress || customer || null,
+      items: lineItems,
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      shipping: totals.shipping,
+      tax: totals.tax,
+      total: totals.total,
+      currency: totals.currency,
+      coupon: totals.coupon,
+      status: 'Pending',
+      paymentStatus: 'Pending',
+      paymentProvider: null,
+      razorpayOrderId: null,
+      razorpayPaymentId: null,
+      paymentMethod: null,
+      paymentAmountPaise: null,
+      verifiedAt: null,
+      inventoryAdjusted: false,
+      createdAt: now,
+      updatedAt: now,
+      accessTokenHash: hashToken(accessToken),
+      _writeIdToken: writeIdToken || null,
+      timeline: [
+        { label: 'Pending', at: now, done: true },
+        { label: 'Confirmed', at: null, done: false },
+        { label: 'Delivered', at: null, done: false },
+      ],
+    }
 
-  // Multi-instance (Vercel): persist pending so verify/webhook can load it.
-  // Local memory store skips this so Pay does not wait on Firestore before Razorpay.
-  if (!useMemoryStore()) {
+    // Multi-instance (Vercel): persist pending so verify/webhook can load it.
+    // Local memory store skips Firestore so Pay does not wait before Razorpay.
+    if (useMemoryStore()) {
+      memoryOrders.set(orderId, order)
+      return { order: stripSecrets(order), accessToken }
+    }
+
     if (!db) initAdmin()
     if (!db) {
       throw publicError(500, 'store_unavailable', 'Order store is unavailable.')
     }
-    await db.collection('orders').doc(orderId).set(stripSecrets(order))
+
+    try {
+      // create() fails if the doc already exists — safe under concurrent writers
+      await db.collection('orders').doc(orderId).create(stripSecrets(order))
+      memoryOrders.set(orderId, order)
+      return { order: stripSecrets(order), accessToken }
+    } catch (err) {
+      if (isAlreadyExistsError(err)) continue
+      throw err
+    }
   }
 
-  return { order: stripSecrets(order), accessToken }
+  throw publicError(
+    500,
+    'order_id_exhausted',
+    'Could not allocate a unique order ID. Please try again.',
+  )
 }
 
 function omitUndefined(value) {

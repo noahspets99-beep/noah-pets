@@ -55,7 +55,7 @@ export default function BrandsSection({ config = {} }) {
         <SectionHeader
           eyebrow="Trusted names"
           title="Shop by Brand"
-          subtitle="Pedigree, Royal Canin, Whiskas and house favourites — we deliver across India."
+          subtitle={/*Pedigree, Royal Canin, Whiskas and house favourites — we deliver across India.*/''}
         />
         <div className="flex flex-wrap gap-2 sm:gap-3">
           {brands.map((brand) => (

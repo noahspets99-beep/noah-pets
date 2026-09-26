@@ -264,7 +264,10 @@ export default function ProductForm({
       price,
       mrp,
       stock,
-      tax: Number(form.tax) || 0,
+      tax: (() => {
+        const rate = Number(form.tax)
+        return Number.isFinite(rate) && rate >= 0 ? rate : 0
+      })(),
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       minOrderQty: Number(form.minOrderQty) || 1,
       discount: computeDiscount(price, mrp),
@@ -836,21 +839,21 @@ export default function ProductForm({
         </div>
       </CollapsibleSection>
 
-      <div className="flex flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {mode === 'edit' && onDelete && (
             <button
               type="button"
               onClick={onDelete}
               disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-xl border border-danger/30 bg-red-50 px-4 py-2.5 text-sm font-semibold text-danger transition hover:bg-red-100 disabled:opacity-60"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-danger/30 bg-red-50 px-4 py-2.5 text-sm font-semibold text-danger transition hover:bg-red-100 disabled:opacity-60"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 shrink-0" />
               Delete
             </button>
           )}
         </div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:items-center">
           {onCancel && (
             <button
               type="button"

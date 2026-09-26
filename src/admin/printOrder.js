@@ -2,6 +2,8 @@ import { STORE, formatStoreAddress } from '../config/store'
 import { formatDateTime, formatINR } from './utils'
 
 const PRINT_IFRAME_ID = 'noah-admin-print-frame'
+/** Display-only website name for print (never a full URL or route). */
+const WEBSITE_NAME = 'noahpets.in'
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -12,7 +14,16 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;')
 }
 
-function formatAddress(order) {
+function resolveShop(shop) {
+  return {
+    name: shop?.storeName || shop?.name || STORE.name,
+    address: shop?.address || formatStoreAddress(),
+    phone: shop?.phone || STORE.phone,
+    email: shop?.email || STORE.email,
+  }
+}
+
+function formatCustomerAddress(order) {
   const ship = order?.shippingAddress || {}
   const customer = order?.customer || {}
   const lines = [
@@ -25,6 +36,66 @@ function formatAddress(order) {
   if (lines.length) return lines.map(escapeHtml).join('<br />')
   if (customer.address) return escapeHtml(customer.address)
   return '—'
+}
+
+/** Normalize pets from order for print/display (supports legacy single-pet fields). */
+export function getOrderPets(order) {
+  if (!order) return []
+  if (Array.isArray(order.pets) && order.pets.length) {
+    return order.pets
+      .map((pet, index) => {
+        if (pet == null) return null
+        if (typeof pet === 'string') {
+          const name = pet.trim()
+          return name ? { id: `pet-${index + 1}`, name } : null
+        }
+        const name = String(pet.name || pet.petName || '').trim()
+        if (!name) return null
+        return {
+          ...pet,
+          id: pet.id || `pet-${index + 1}`,
+          name,
+        }
+      })
+      .filter(Boolean)
+  }
+  const legacy =
+    order.petName ||
+    order.pet?.name ||
+    order.customer?.petName ||
+    ''
+  const name = String(legacy).trim()
+  return name ? [{ id: 'pet-1', name }] : []
+}
+
+function buildPetsHtml(order) {
+  const pets = getOrderPets(order)
+  if (!pets.length) return ''
+
+  const rows = pets
+    .map((pet, index) => {
+      const extras = []
+      if (pet.type || pet.petType) {
+        extras.push(
+          `Type: ${escapeHtml(pet.type || pet.petType)}`,
+        )
+      }
+      if (pet.breed) extras.push(`Breed: ${escapeHtml(pet.breed)}`)
+      if (pet.notes) extras.push(escapeHtml(pet.notes))
+      const extraHtml = extras.length
+        ? `<p style="margin:2px 0 0;color:#4b5563;font-size:12px;">${extras.join(' · ')}</p>`
+        : ''
+      return `<div style="margin:0 0 8px;">
+        <p style="margin:0;"><strong>Pet ${index + 1}:</strong> ${escapeHtml(pet.name)}</p>
+        ${extraHtml}
+      </div>`
+    })
+    .join('')
+
+  return `<div class="card" style="margin-bottom:18px;">
+    <h2>Pets</h2>
+    ${rows}
+  </div>`
 }
 
 function buildItemsRows(items) {
@@ -55,8 +126,9 @@ function buildItemsRows(items) {
     .join('')
 }
 
-function buildPrintHtml(order) {
+function buildPrintHtml(order, shopInput) {
   const customer = order.customer || {}
+  const shop = resolveShop(shopInput)
   const items = Array.isArray(order.items) ? order.items : []
   const itemsSubtotal = items.reduce(
     (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
@@ -70,12 +142,14 @@ function buildPrintHtml(order) {
   const paymentStatus = order.paymentStatus || order.payment || '—'
   const paymentMethod = order.paymentMethod || order.paymentProvider || '—'
   const logoUrl = `${window.location.origin}/logo.jpeg`
+  const customerEmail = customer.email || order.shippingAddress?.email || ''
+  const customerPhone = customer.phone || customer.mobile || ''
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Order ${escapeHtml(order.id)} — ${escapeHtml(STORE.name)}</title>
+  <title>Order ${escapeHtml(order.id)} — ${escapeHtml(shop.name)}</title>
   <style>
     @page { size: A4; margin: 16mm; }
     * { box-sizing: border-box; }
@@ -86,27 +160,30 @@ function buildPrintHtml(order) {
       font-size: 13px;
       line-height: 1.45;
       background: #fff;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
-    .sheet { max-width: 800px; margin: 0 auto; }
+    .sheet { max-width: 800px; margin: 0 auto; width: 100%; }
     .header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 16px;
       border-bottom: 2px solid #111827;
       padding-bottom: 14px;
       margin-bottom: 18px;
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand { display: flex; align-items: flex-start; gap: 12px; min-width: 0; flex: 1; }
     .brand img {
       width: 52px;
       height: 52px;
       object-fit: cover;
       border-radius: 8px;
+      flex-shrink: 0;
     }
-    .brand h1 { margin: 0; font-size: 22px; }
-    .brand p { margin: 2px 0 0; color: #4b5563; font-size: 12px; }
-    .meta { text-align: right; }
+    .brand h1 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+    .brand p { margin: 2px 0 0; color: #4b5563; font-size: 12px; overflow-wrap: anywhere; }
+    .meta { text-align: right; flex-shrink: 0; max-width: 45%; overflow-wrap: anywhere; }
     .meta strong { font-size: 16px; }
     .grid {
       display: grid;
@@ -114,6 +191,7 @@ function buildPrintHtml(order) {
       gap: 18px;
       margin-bottom: 18px;
     }
+    .card { min-width: 0; }
     .card h2 {
       margin: 0 0 8px;
       font-size: 12px;
@@ -121,8 +199,8 @@ function buildPrintHtml(order) {
       letter-spacing: 0.04em;
       color: #6b7280;
     }
-    .card p { margin: 0 0 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .card p { margin: 0 0 4px; overflow-wrap: anywhere; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
     th {
       text-align: left;
       font-size: 11px;
@@ -133,16 +211,25 @@ function buildPrintHtml(order) {
       padding: 8px 10px;
       background: #f9fafb;
     }
+    td { overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
+    th:nth-child(1), td:nth-child(1) { width: 48%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { width: 20%; }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
     .totals {
       width: 280px;
+      max-width: 100%;
       margin-left: auto;
       margin-top: 14px;
     }
     .totals .row {
       display: flex;
       justify-content: space-between;
+      gap: 12px;
       padding: 4px 0;
     }
+    .totals .row span:first-child { min-width: 0; overflow-wrap: anywhere; }
+    .totals .row span:last-child { flex-shrink: 0; }
     .totals .row.total {
       border-top: 2px solid #111827;
       margin-top: 6px;
@@ -156,9 +243,15 @@ function buildPrintHtml(order) {
       border-top: 1px solid #e5e7eb;
       color: #6b7280;
       font-size: 11px;
+      overflow-wrap: anywhere;
     }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; }
+      .meta { text-align: left; max-width: 100%; }
     }
   </style>
 </head>
@@ -166,11 +259,10 @@ function buildPrintHtml(order) {
   <div class="sheet">
     <div class="header">
       <div class="brand">
-        <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(STORE.name)}" onerror="this.style.display='none'" />
+        <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(shop.name)}" onerror="this.style.display='none'" />
         <div>
-          <h1>${escapeHtml(STORE.name)}</h1>
-          <p>${escapeHtml(formatStoreAddress())}</p>
-          <p>${escapeHtml(STORE.email)} · ${escapeHtml(STORE.phone)}</p>
+          <h1>${escapeHtml(shop.name)}</h1>
+          <p>${escapeHtml(WEBSITE_NAME)}</p>
         </div>
       </div>
       <div class="meta">
@@ -182,16 +274,30 @@ function buildPrintHtml(order) {
 
     <div class="grid">
       <div class="card">
-        <h2>Customer</h2>
+        <h2>TO — Customer Details</h2>
         <p><strong>${escapeHtml(customer.name || 'Customer')}</strong></p>
-        <p>Phone: ${escapeHtml(customer.phone || customer.mobile || '—')}</p>
-        <p>Email: ${escapeHtml(customer.email || '—')}</p>
+        <p>${formatCustomerAddress(order)}</p>
+        <p>Phone: ${escapeHtml(customerPhone || '—')}</p>
+        ${
+          customerEmail
+            ? `<p>Email: ${escapeHtml(customerEmail)}</p>`
+            : ''
+        }
       </div>
       <div class="card">
-        <h2>Delivery address</h2>
-        <p>${formatAddress(order)}</p>
+        <h2>FROM — Shop Details</h2>
+        <p><strong>${escapeHtml(shop.name)}</strong></p>
+        <p>${escapeHtml(shop.address)}</p>
+        <p>Phone: ${escapeHtml(shop.phone || '—')}</p>
+        ${
+          shop.email
+            ? `<p>Email: ${escapeHtml(shop.email)}</p>`
+            : ''
+        }
       </div>
     </div>
+
+    ${buildPetsHtml(order)}
 
     <div class="card">
       <h2>Ordered products</h2>
@@ -239,7 +345,7 @@ function buildPrintHtml(order) {
     </div>
 
     <div class="footer">
-      Printed from ${escapeHtml(STORE.name)} Admin · ${escapeHtml(new Date().toLocaleString('en-IN'))}
+      Printed from ${escapeHtml(shop.name)} · ${escapeHtml(WEBSITE_NAME)} · ${escapeHtml(new Date().toLocaleString('en-IN'))}
     </div>
   </div>
 </body>
@@ -271,13 +377,15 @@ function getPrintIframe() {
 /**
  * Print a single admin order via a hidden iframe (no popup window).
  * Only that order's HTML is printed — Admin UI is never included.
+ * @param {object} order
+ * @param {object} [shop] Optional admin store settings (storeName, address, phone, email)
  */
-export function printAdminOrder(order) {
+export function printAdminOrder(order, shop) {
   if (!order?.id || typeof window === 'undefined' || typeof document === 'undefined') {
     return
   }
 
-  const html = buildPrintHtml(order)
+  const html = buildPrintHtml(order, shop)
   const iframe = getPrintIframe()
   const doc = iframe.contentWindow?.document || iframe.contentDocument
   if (!doc || !iframe.contentWindow) {

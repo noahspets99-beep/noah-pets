@@ -387,11 +387,11 @@ export default function ProductsPage() {
             Showing {pageItems.length} of {total} products
           </p>
 
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-card md:block">
-            <table className="w-full text-left text-sm">
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white shadow-card md:block">
+            <table className="w-full table-fixed text-left text-sm">
               <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3">
+                  <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
                       checked={allPageSelected}
@@ -400,14 +400,14 @@ export default function ProductsPage() {
                       aria-label="Select all on page"
                     />
                   </th>
-                  <th className="px-4 py-3 font-semibold">Product</th>
-                  <th className="px-4 py-3 font-semibold">SKU</th>
-                  <th className="px-4 py-3 font-semibold">Category</th>
-                  <th className="px-4 py-3 font-semibold">Price</th>
-                  <th className="px-4 py-3 font-semibold">Stock</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Updated</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
+                  <th className="w-[28%] px-4 py-3 font-semibold">Product</th>
+                  <th className="w-[12%] px-4 py-3 font-semibold">SKU</th>
+                  <th className="w-[16%] px-4 py-3 font-semibold">Category</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Price</th>
+                  <th className="w-[8%] px-4 py-3 font-semibold">Stock</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Status</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Updated</th>
+                  <th className="w-[8%] px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -422,21 +422,34 @@ export default function ProductsPage() {
                         aria-label={`Select ${p.name}`}
                       />
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <td className="max-w-0 px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <img
                           src={p.images?.[0]}
                           alt=""
-                          className="h-10 w-10 rounded-lg object-cover"
+                          className="h-10 w-10 shrink-0 rounded-lg object-cover"
                         />
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-ink">{p.name}</p>
-                          <p className="text-xs text-muted">{p.petType}</p>
+                          <p
+                            className="truncate font-semibold text-ink"
+                            title={p.name}
+                          >
+                            {p.name}
+                          </p>
+                          <p className="truncate text-xs text-muted">{p.petType}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted">{p.sku}</td>
-                    <td className="px-4 py-3 text-muted">{p.category}</td>
+                    <td className="max-w-0 px-4 py-3 text-muted">
+                      <span className="block truncate" title={p.sku}>
+                        {p.sku}
+                      </span>
+                    </td>
+                    <td className="max-w-0 px-4 py-3 text-muted">
+                      <span className="block truncate" title={p.category}>
+                        {p.category}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 font-semibold">{formatINR(p.price)}</td>
                     <td className="px-4 py-3">
                       <span
@@ -454,14 +467,16 @@ export default function ProductsPage() {
                     <td className="px-4 py-3">
                       <StatusBadge status={p.status} />
                     </td>
-                    <td className="px-4 py-3 text-muted">{formatDate(p.updatedAt)}</td>
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">{formatDate(p.updatedAt)}</td>
                     <td className="px-4 py-3">
-                      <RowActions
-                        product={p}
-                        onView={setViewProduct}
-                        onDuplicate={duplicateProduct}
-                        onDeactivate={setDeactivateTarget}
-                      />
+                      <div className="flex justify-end">
+                        <RowActions
+                          product={p}
+                          onView={setViewProduct}
+                          onDuplicate={duplicateProduct}
+                          onDeactivate={setDeactivateTarget}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -473,36 +488,40 @@ export default function ProductsPage() {
             {pageItems.map((p) => (
               <article
                 key={p.id}
-                className="rounded-2xl border border-line bg-white p-4 shadow-card"
+                className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card"
               >
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     checked={selected.includes(p.id)}
                     onChange={() => toggleOne(p.id)}
-                    className="mt-1 h-4 w-4 rounded border-line text-brand-500"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-line text-brand-500"
                     aria-label={`Select ${p.name}`}
                   />
                   <img
                     src={p.images?.[0]}
                     alt=""
-                    className="h-14 w-14 rounded-xl object-cover"
+                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-ink">{p.name}</p>
-                    <p className="text-xs text-muted">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate font-bold text-ink" title={p.name}>
+                      {p.name}
+                    </p>
+                    <p className="truncate text-xs text-muted" title={`${p.sku} · ${p.petType}`}>
                       {p.sku} · {p.petType}
                     </p>
                     <div className="mt-2">
                       <StatusBadge status={p.status} />
                     </div>
                   </div>
-                  <RowActions
-                    product={p}
-                    onView={setViewProduct}
-                    onDuplicate={duplicateProduct}
-                    onDeactivate={setDeactivateTarget}
-                  />
+                  <div className="shrink-0">
+                    <RowActions
+                      product={p}
+                      onView={setViewProduct}
+                      onDuplicate={duplicateProduct}
+                      onDeactivate={setDeactivateTarget}
+                    />
+                  </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 text-sm">
                   <div>

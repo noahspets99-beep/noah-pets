@@ -13,6 +13,7 @@ import ActionMenu from '../../admin/components/ActionMenu'
 import { formatDate, slugify } from '../../admin/utils'
 import { useAdminStore } from '../../context/AdminStore'
 import { PET_TYPES } from '../../admin/productConstants'
+import { countProductsByCategory } from '../../lib/categoryProducts'
 
 const CATEGORY_PET_TYPES = ['All', ...PET_TYPES.filter((p) => p !== 'Other')]
 
@@ -31,47 +32,6 @@ const inputClass =
   'w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-100'
 
 const labelClass = 'mb-1.5 block text-sm font-semibold text-ink'
-
-/** Match products to categories using id, name, slug, or petType (root categories). */
-function productMatchesCategory(product, category) {
-  if (!product || !category) return false
-  const catIds = [
-    product.categoryId,
-    product.categoryDocId,
-    product.categoryRef,
-  ]
-    .filter(Boolean)
-    .map(String)
-  if (catIds.includes(String(category.id))) return true
-
-  const cName = String(category.name || '')
-    .trim()
-    .toLowerCase()
-  const cSlug = String(category.slug || '')
-    .trim()
-    .toLowerCase()
-  const names = [product.category, product.categoryName, product.subcategory]
-    .filter(Boolean)
-    .map((s) => String(s).trim().toLowerCase())
-  const slugs = [product.categorySlug, product.subcategorySlug]
-    .filter(Boolean)
-    .map((s) => String(s).trim().toLowerCase())
-
-  if (cName && names.includes(cName)) return true
-  if (cSlug && slugs.includes(cSlug)) return true
-
-  // Root pet-type categories (e.g. Dogs / Cats): count by petType
-  if (!category.parentId) {
-    const pt = String(product.petType || '')
-      .trim()
-      .toLowerCase()
-    const cPt = String(category.petType || category.name || '')
-      .trim()
-      .toLowerCase()
-    if (pt && cPt && pt === cPt && cPt !== 'all') return true
-  }
-  return false
-}
 
 function CategoryForm({ form, setForm, categories, excludeId, slugManual, setSlugManual }) {
   const parentOptions = categories.filter(
@@ -267,18 +227,10 @@ export default function CategoriesPage() {
   const [slugManual, setSlugManual] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const productCountByCategoryId = useMemo(() => {
-    const counts = new Map()
-    for (const c of categories) counts.set(c.id, 0)
-    for (const p of products || []) {
-      for (const c of categories) {
-        if (productMatchesCategory(p, c)) {
-          counts.set(c.id, (counts.get(c.id) || 0) + 1)
-        }
-      }
-    }
-    return counts
-  }, [categories, products])
+  const productCountByCategoryId = useMemo(
+    () => countProductsByCategory(products || [], categories || []),
+    [categories, products],
+  )
 
   const sorted = useMemo(
     () =>
@@ -390,50 +342,72 @@ export default function CategoriesPage() {
         />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-card md:block">
-            <table className="w-full text-left text-sm">
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white shadow-card md:block">
+            <table className="w-full table-fixed text-left text-sm">
               <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Category</th>
-                  <th className="px-4 py-3 font-semibold">Pet Type</th>
-                  <th className="px-4 py-3 font-semibold">Products</th>
-                  <th className="px-4 py-3 font-semibold">Parent</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Updated</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
+                  <th className="w-[32%] px-4 py-3 font-semibold">Category</th>
+                  <th className="w-[12%] px-4 py-3 font-semibold">Pet Type</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Products</th>
+                  <th className="w-[16%] px-4 py-3 font-semibold">Parent</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Status</th>
+                  <th className="w-[12%] px-4 py-3 font-semibold">Updated</th>
+                  <th className="w-[8%] px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((c) => (
                   <tr key={c.id} className="border-t border-line hover:bg-surface/60">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <td className="max-w-0 px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <img
                           src={c.image}
                           alt=""
-                          className="h-10 w-10 rounded-lg object-cover"
+                          className="h-10 w-10 shrink-0 rounded-lg object-cover"
                         />
-                        <div>
-                          <p className="font-semibold text-ink">{c.name}</p>
-                          <p className="text-xs text-muted">/{c.slug}</p>
+                        <div className="min-w-0">
+                          <p
+                            className="truncate font-semibold text-ink"
+                            title={c.name}
+                          >
+                            {c.name}
+                          </p>
+                          <p className="truncate text-xs text-muted" title={`/${c.slug}`}>
+                            /{c.slug}
+                          </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted">{c.petType}</td>
+                    <td className="px-4 py-3 text-muted">
+                      <span className="block truncate" title={c.petType}>
+                        {c.petType}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 font-semibold">
                       {productCountByCategoryId.get(c.id) ?? 0}
                     </td>
-                    <td className="px-4 py-3 text-muted">{parentName(c.parentId)}</td>
+                    <td className="max-w-0 px-4 py-3 text-muted">
+                      <span
+                        className="block truncate"
+                        title={parentName(c.parentId)}
+                      >
+                        {parentName(c.parentId)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
                     </td>
-                    <td className="px-4 py-3 text-muted">{formatDate(c.updatedAt)}</td>
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
+                      {formatDate(c.updatedAt)}
+                    </td>
                     <td className="px-4 py-3">
-                      <RowActions
-                        category={c}
-                        onEdit={openEdit}
-                        onDelete={setDeleteTarget}
-                      />
+                      <div className="flex justify-end">
+                        <RowActions
+                          category={c}
+                          onEdit={openEdit}
+                          onDelete={setDeleteTarget}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -445,32 +419,40 @@ export default function CategoriesPage() {
             {sorted.map((c) => (
               <article
                 key={c.id}
-                className="rounded-2xl border border-line bg-white p-4 shadow-card"
+                className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card"
               >
                 <div className="flex items-start gap-3">
                   <img
                     src={c.image}
                     alt=""
-                    className="h-14 w-14 rounded-xl object-cover"
+                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-ink">{c.name}</p>
-                    <p className="text-xs text-muted">/{c.slug}</p>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate font-bold text-ink" title={c.name}>
+                      {c.name}
+                    </p>
+                    <p className="truncate text-xs text-muted" title={`/${c.slug}`}>
+                      /{c.slug}
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <StatusBadge status={c.status} />
                       {c.featured && <StatusBadge status="Featured" />}
                     </div>
                   </div>
-                  <RowActions
-                    category={c}
-                    onEdit={openEdit}
-                    onDelete={setDeleteTarget}
-                  />
+                  <div className="shrink-0">
+                    <RowActions
+                      category={c}
+                      onEdit={openEdit}
+                      onDelete={setDeleteTarget}
+                    />
+                  </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 text-sm">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted">Pet Type</p>
-                    <p className="font-semibold">{c.petType}</p>
+                    <p className="truncate font-semibold" title={c.petType}>
+                      {c.petType}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Products</p>
@@ -478,9 +460,14 @@ export default function CategoriesPage() {
                       {productCountByCategoryId.get(c.id) ?? 0}
                     </p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted">Parent</p>
-                    <p className="font-semibold">{parentName(c.parentId)}</p>
+                    <p
+                      className="truncate font-semibold"
+                      title={parentName(c.parentId)}
+                    >
+                      {parentName(c.parentId)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Updated</p>
@@ -560,7 +547,7 @@ export default function CategoriesPage() {
           </div>
         }
       >
-        <p className="text-sm text-ink-soft">
+        <p className="break-words text-sm text-ink-soft">
           Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;?
           Products in this category will not be deleted.
         </p>

@@ -63,9 +63,9 @@ export default function ProductFormPage() {
         actions={
           <Link
             to="/admin/products"
-            className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink transition hover:bg-surface"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink transition hover:bg-surface"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 shrink-0" />
             Back
           </Link>
         }
@@ -104,7 +104,7 @@ export default function ProductFormPage() {
           </div>
         }
       >
-        <p className="text-sm text-ink-soft">
+        <p className="break-words text-sm text-ink-soft">
           Are you sure you want to delete &ldquo;{product?.name}&rdquo;? This
           action cannot be undone.
         </p>

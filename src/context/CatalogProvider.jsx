@@ -16,6 +16,7 @@ import {
   searchProducts as searchProductList,
   getProductBySlug as getStaticBySlug,
 } from '../data/catalog'
+import { getProductsForCategory } from '../lib/categoryProducts'
 
 const CatalogContext = createContext(null)
 
@@ -487,16 +488,7 @@ export function CatalogProvider({ children }) {
       filterProducts: (filter) => filterProductList(products, filter),
       searchProducts: (query) => searchProductList(products, query),
       getProductsByCategorySlug: (slug) =>
-        products.filter(
-          (p) =>
-            p.categorySlug === slug ||
-            p.subcategorySlug === slug ||
-            p.petType?.toLowerCase() === slug ||
-            String(slug || '').toLowerCase() ===
-              String(p.petType || '')
-                .toLowerCase()
-                .replace(/\s+/g, '-'),
-        ),
+        getProductsForCategory(products, slug, categories),
       getProductsByPetType: (petType) =>
         products.filter((p) => p.petType === petType),
     }

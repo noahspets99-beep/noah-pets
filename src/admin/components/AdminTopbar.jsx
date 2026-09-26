@@ -106,26 +106,42 @@ export default function AdminTopbar({ title, onMenuClick }) {
                   </button>
                 </div>
                 <ul className="max-h-80 overflow-y-auto">
-                  {notifications.map((n) => (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => markNotificationRead(n.id)}
-                        className={`flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-surface ${
-                          !n.read ? 'bg-brand-50/50' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-ink">{n.title}</p>
-                          {!n.read && (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" />
-                          )}
-                        </div>
-                        <p className="text-xs text-muted">{n.message}</p>
-                        <p className="text-[11px] text-muted">{n.time}</p>
-                      </button>
+                  {notifications.length === 0 ? (
+                    <li className="px-4 py-6 text-center text-sm text-muted">
+                      No notifications yet
                     </li>
-                  ))}
+                  ) : (
+                    notifications.map((n) => (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            markNotificationRead(n.id)
+                            setNotifOpen(false)
+                            if (n.orderId) {
+                              navigate(`/admin/orders/${n.orderId}`)
+                            } else if (n.type === 'order') {
+                              navigate('/admin/orders')
+                            }
+                          }}
+                          className={`flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-surface ${
+                            !n.read ? 'bg-brand-50/50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-ink">
+                              {n.title}
+                            </p>
+                            {!n.read && (
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted">{n.message}</p>
+                          <p className="text-[11px] text-muted">{n.time}</p>
+                        </button>
+                      </li>
+                    ))
+                  )}
                 </ul>
               </div>
             )}

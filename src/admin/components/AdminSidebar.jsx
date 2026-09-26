@@ -27,6 +27,7 @@ import {
   logoutAdmin,
   setSidebarCollapsed,
 } from '../../services/adminAuth'
+import { useAdminStore } from '../../context/useAdminStore'
 
 const navGroups = [
   {
@@ -81,7 +82,7 @@ const navGroups = [
   },
 ]
 
-function NavItems({ collapsed, onNavigate, onLogout }) {
+function NavItems({ collapsed, onNavigate, onLogout, pendingOrderCount = 0 }) {
   return (
     <>
       {navGroups.map((group, gi) => (
@@ -98,7 +99,13 @@ function NavItems({ collapsed, onNavigate, onLogout }) {
                   to={to}
                   end={to === '/admin/dashboard' || to === '/admin/products'}
                   onClick={onNavigate}
-                  title={collapsed ? label : undefined}
+                  title={
+                    collapsed
+                      ? to === '/admin/orders' && pendingOrderCount > 0
+                        ? `${label} (${pendingOrderCount})`
+                        : label
+                      : undefined
+                  }
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                       isActive
@@ -107,8 +114,26 @@ function NavItems({ collapsed, onNavigate, onLogout }) {
                     } ${collapsed ? 'justify-center px-2' : ''}`
                   }
                 >
-                  <Icon className="h-4.5 w-4.5 h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{label}</span>}
+                  <span className="relative shrink-0">
+                    <Icon className="h-4 w-4" />
+                    {collapsed &&
+                      to === '/admin/orders' &&
+                      pendingOrderCount > 0 && (
+                        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-0.5 text-[9px] font-bold text-white">
+                          {pendingOrderCount > 99 ? '99+' : pendingOrderCount}
+                        </span>
+                      )}
+                  </span>
+                  {!collapsed && (
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span>{label}</span>
+                      {to === '/admin/orders' && pendingOrderCount > 0 && (
+                        <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
+                          {pendingOrderCount > 99 ? '99+' : pendingOrderCount}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -139,6 +164,7 @@ export function AdminSidebar({
   setMobileOpen,
 }) {
   const navigate = useNavigate()
+  const { pendingOrderCount = 0 } = useAdminStore()
 
   const handleLogout = async () => {
     await logoutAdmin()
@@ -201,6 +227,7 @@ export function AdminSidebar({
         <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
           <NavItems
             collapsed={collapsed}
+            pendingOrderCount={pendingOrderCount}
             onLogout={handleLogout}
           />
         </nav>
@@ -240,6 +267,7 @@ export function AdminSidebar({
             <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
               <NavItems
                 collapsed={false}
+                pendingOrderCount={pendingOrderCount}
                 onNavigate={() => setMobileOpen(false)}
                 onLogout={() => {
                   setMobileOpen(false)

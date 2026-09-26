@@ -261,7 +261,7 @@ async function fetchPublicShippingSettings() {
 }
 
 export async function resolveShippingSettings(db) {
-  if (shippingCache.at && Date.now() - shippingCache.at < 30_000) {
+  if (shippingCache.at && Date.now() - shippingCache.at < 5_000) {
     return {
       freeShippingMinOrder: shippingCache.freeShippingMinOrder,
       standardShippingFee: shippingCache.standardShippingFee,
@@ -296,7 +296,7 @@ export async function resolveShippingSettings(db) {
 }
 
 export async function resolveTaxRate(db) {
-  if (taxRateCache.at && Date.now() - taxRateCache.at < 30_000) {
+  if (taxRateCache.at && Date.now() - taxRateCache.at < 5_000) {
     return taxRateCache.rate
   }
   let rate = DEFAULT_TAX_RATE

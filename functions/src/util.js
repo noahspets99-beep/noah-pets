@@ -30,9 +30,9 @@ export function safeEqual(a, b) {
 }
 
 export function generateOrderId() {
-  const stamp = Date.now().toString(36).toUpperCase()
-  const rand = randomBytes(3).toString('hex').toUpperCase()
-  return `ORD-${stamp}-${rand}`
+  // Exactly 6 numeric digits (000000–999999), zero-padded.
+  const n = randomBytes(4).readUInt32BE(0) % 1_000_000
+  return String(n).padStart(6, '0')
 }
 
 export function publicError(status, code, message) {

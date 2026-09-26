@@ -22,7 +22,7 @@ import {
 } from '../data/indiaCities'
 import { blogPosts as seedBlogPosts } from '../data/blogPosts'
 import { DEFAULT_SEO, TN_PRIORITY_CITIES } from '../config/store'
-import { delay } from '../admin/utils'
+import { delay, slugify } from '../admin/utils'
 import { AdminStoreContext } from './admin-store-context'
 import {
   listCollection,
@@ -68,14 +68,19 @@ function mapCatalogToAdmin(p) {
     barcode: p.barcode || '',
     brand: p.brand || '',
     petType: PET_TYPE_MAP[p.petType] || p.petType || 'Dogs',
-    category: p.subcategory || p.category || '',
+    category: p.category || p.subcategory || '',
     subcategory: p.subcategory || '',
+    categoryId: p.categoryId || '',
+    categorySlug: p.categorySlug || '',
     description: p.description || '',
     shortDescription: p.shortDescription || '',
     price: p.price ?? 0,
     mrp: p.originalPrice ?? p.mrp ?? p.price ?? 0,
     discount: p.discount ?? 0,
-    tax: 5,
+    tax: (() => {
+      const rate = Number(p.tax)
+      return Number.isFinite(rate) && rate >= 0 ? rate : 0
+    })(),
     stock,
     lowStockThreshold: p.lowStockThreshold ?? 10,
     images: p.images?.length ? [...p.images] : p.image ? [p.image] : [''],
@@ -188,6 +193,32 @@ function toIsoDate(value) {
   return null
 }
 
+function normalizeOrderPets(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw.pets)) {
+    return raw.pets
+      .map((pet, index) => {
+        if (pet == null) return null
+        if (typeof pet === 'string') {
+          const name = pet.trim()
+          return name ? { id: `pet-${index + 1}`, name } : null
+        }
+        const name = String(pet.name || pet.petName || '').trim()
+        if (!name && !pet.id) return null
+        return {
+          ...pet,
+          id: pet.id || `pet-${index + 1}`,
+          name: name || '',
+        }
+      })
+      .filter(Boolean)
+  }
+  const legacy =
+    raw.petName || raw.pet?.name || raw.customer?.petName || ''
+  const name = String(legacy).trim()
+  return name ? [{ id: 'pet-1', name }] : []
+}
+
 function normalizeAdminOrder(raw) {
   if (!raw) return null
   const customer = raw.customer || {}
@@ -216,6 +247,7 @@ function normalizeAdminOrder(raw) {
       pincode: ship.pincode || '',
     },
     items: Array.isArray(raw.items) ? raw.items : [],
+    pets: normalizeOrderPets(raw),
     payment: paymentStatus,
     paymentStatus,
     paymentMethod: raw.paymentMethod || raw.paymentProvider || '—',
@@ -398,6 +430,40 @@ function applyOrderTimeline(order, status) {
   })
 }
 
+async function ensureOrderNotifications(orders) {
+  if (!isFirebaseConfigured || !Array.isArray(orders)) return
+  const pending = orders.filter((o) => o.status === 'Pending')
+  await Promise.all(
+    pending.map(async (order) => {
+      const id = `order-${order.id}`
+      try {
+        const existing = await getDocument('adminNotifications', id)
+        if (existing.mode === 'firestore' && existing.data) return
+        const total = Number(order.total) || 0
+        const name = order.customer?.name || 'Customer'
+        await upsertDocument(
+          'adminNotifications',
+          id,
+          stripUndefined({
+            id,
+            type: 'order',
+            orderId: String(order.id),
+            title: 'New order',
+            message: `${name} placed order #${order.id} · ₹${total.toLocaleString('en-IN')}`,
+            createdAt: order.createdAt || new Date().toISOString(),
+            time: new Date(
+              order.createdAt || Date.now(),
+            ).toLocaleString('en-IN'),
+            read: false,
+          }),
+        )
+      } catch (err) {
+        console.warn('[admin] notification create', id, err?.message || err)
+      }
+    }),
+  )
+}
+
 export function AdminStoreProvider({ children }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -408,7 +474,9 @@ export function AdminStoreProvider({ children }) {
   const [coupons, setCoupons] = useState([])
   const [banners, setBanners] = useState([])
   const [settings, setSettings] = useState(initialAdminSettings)
-  const [notifications, setNotifications] = useState(initialAdminNotifications)
+  const [notifications, setNotifications] = useState(() =>
+    isFirebaseConfigured ? [] : initialAdminNotifications,
+  )
   const [toasts, setToasts] = useState([])
   const [dataStatus, setDataStatus] = useState({
     loading: true,
@@ -450,6 +518,7 @@ export function AdminStoreProvider({ children }) {
   useEffect(() => {
     let cancelled = false
     let unsubOrders = () => {}
+    let unsubNotifications = () => {}
 
     async function loadStaticCollections() {
       if (!isFirebaseConfigured) {
@@ -632,8 +701,88 @@ export function AdminStoreProvider({ children }) {
 
         if (settingsRes.mode === 'firestore' && settingsRes.data) {
           const { id: _setId, ...settingsData } = settingsRes.data
-          setSettings((prev) => ({ ...prev, ...settingsData }))
+          const taxData =
+            taxRes.mode === 'firestore' && taxRes.data
+              ? (() => {
+                  const { id: _t, ...rest } = taxRes.data
+                  return rest
+                })()
+              : null
+          const shipData =
+            shippingRes.mode === 'firestore' && shippingRes.data
+              ? (() => {
+                  const { id: _s, ...rest } = shippingRes.data
+                  return rest
+                })()
+              : null
+          setSettings((prev) => {
+            const next = { ...prev, ...settingsData }
+            if (taxData && taxData.defaultRate != null) {
+              const rate = Number(taxData.defaultRate)
+              next.taxPercent = Number.isFinite(rate) && rate >= 0 ? rate : 0
+            }
+            if (shipData) {
+              const fee = Number(shipData.standardShippingFee)
+              const freeMin = Number(shipData.freeShippingMinOrder)
+              if (Number.isFinite(fee) && fee >= 0) next.deliveryFee = fee
+              if (Number.isFinite(freeMin) && freeMin >= 0) {
+                next.freeDeliveryThreshold = freeMin
+              }
+            }
+            return next
+          })
+        } else if (
+          (taxRes.mode === 'firestore' && taxRes.data) ||
+          (shippingRes.mode === 'firestore' && shippingRes.data)
+        ) {
+          // Mirror canonical tax/shipping into Settings even if storeSettings is empty
+          setSettings((prev) => {
+            const next = { ...prev }
+            if (taxRes.mode === 'firestore' && taxRes.data) {
+              const rate = Number(taxRes.data.defaultRate)
+              next.taxPercent = Number.isFinite(rate) && rate >= 0 ? rate : 0
+            }
+            if (shippingRes.mode === 'firestore' && shippingRes.data) {
+              const fee = Number(shippingRes.data.standardShippingFee)
+              const freeMin = Number(shippingRes.data.freeShippingMinOrder)
+              if (Number.isFinite(fee) && fee >= 0) next.deliveryFee = fee
+              if (Number.isFinite(freeMin) && freeMin >= 0) {
+                next.freeDeliveryThreshold = freeMin
+              }
+            }
+            return next
+          })
         }
+
+        unsubNotifications = subscribeCollection('adminNotifications', [], {
+          onData: (rows) => {
+            if (cancelled) return
+            const list = (rows || [])
+              .map((n) => ({
+                ...n,
+                id: n.id,
+                title: n.title || 'Notification',
+                message: n.message || '',
+                time:
+                  n.time ||
+                  (n.createdAt
+                    ? new Date(n.createdAt).toLocaleString('en-IN')
+                    : ''),
+                read: Boolean(n.read),
+                type: n.type || 'order',
+                orderId: n.orderId || null,
+              }))
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+              )
+            setNotifications(list)
+          },
+          onError: (message) => {
+            if (cancelled) return
+            console.warn('[admin] notifications', message)
+          },
+        })
 
         unsubOrders = subscribeCollection('orders', [], {
           onData: (rows) => {
@@ -646,6 +795,12 @@ export function AdminStoreProvider({ children }) {
                   new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
               )
             setOrders(normalized)
+            ensureOrderNotifications(normalized).catch((err) =>
+              console.warn(
+                '[admin] ensureOrderNotifications',
+                err?.message || err,
+              ),
+            )
             if (import.meta.env.DEV) {
               console.info('[admin] orders snapshot', {
                 collection: 'orders',
@@ -698,6 +853,7 @@ export function AdminStoreProvider({ children }) {
     return () => {
       cancelled = true
       unsubOrders()
+      unsubNotifications()
     }
   }, [])
 
@@ -713,30 +869,52 @@ export function AdminStoreProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
-  const markNotificationRead = useCallback((id) => {
+  const markNotificationRead = useCallback(async (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     )
+    if (!isFirebaseConfigured) return
+    try {
+      await patchDocument('adminNotifications', id, { read: true })
+    } catch (err) {
+      console.warn('[admin] markNotificationRead', err?.message || err)
+    }
   }, [])
 
-  const markAllNotificationsRead = useCallback(() => {
+  const markAllNotificationsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }, [])
+    if (!isFirebaseConfigured) return
+    try {
+      const unread = notifications.filter((n) => !n.read)
+      await Promise.all(
+        unread.map((n) =>
+          patchDocument('adminNotifications', n.id, { read: true }),
+        ),
+      )
+    } catch (err) {
+      console.warn('[admin] markAllNotificationsRead', err?.message || err)
+    }
+  }, [notifications])
 
   const createProduct = useCallback(
     async (data) => {
+      const matchedCategory = categories.find(
+        (c) =>
+          String(c.name || '').trim().toLowerCase() ===
+            String(data.category || '').trim().toLowerCase() ||
+          String(c.id) === String(data.categoryId || ''),
+      )
+      const categorySlug =
+        data.categorySlug ||
+        matchedCategory?.slug ||
+        (data.category
+          ? slugify(data.category)
+          : 'products')
       const product = {
         ...data,
         id: data.id || uid('p'),
-        categorySlug:
-          data.categorySlug ||
-          (data.category
-            ? String(data.category)
-                .toLowerCase()
-                .trim()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/[\s_-]+/g, '-')
-            : 'products'),
+        categoryId: data.categoryId || matchedCategory?.id || '',
+        categorySlug,
         sales: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -747,13 +925,29 @@ export function AdminStoreProvider({ children }) {
       pushToast('Product saved — visible on storefront')
       return product
     },
-    [pushToast],
+    [categories, pushToast],
   )
 
   const updateProduct = useCallback(
     async (id, data) => {
       const updatedAt = new Date().toISOString()
-      const patch = { ...data, updatedAt }
+      const matchedCategory = categories.find(
+        (c) =>
+          String(c.name || '').trim().toLowerCase() ===
+            String(data.category || '').trim().toLowerCase() ||
+          String(c.id) === String(data.categoryId || ''),
+      )
+      const patch = {
+        ...data,
+        updatedAt,
+      }
+      if (data.category != null || data.categoryId != null) {
+        patch.categoryId = data.categoryId || matchedCategory?.id || ''
+        patch.categorySlug =
+          data.categorySlug ||
+          matchedCategory?.slug ||
+          (data.category ? slugify(data.category) : undefined)
+      }
       await upsertDocument('products', id, stripUndefined(patch))
       setProducts((prev) =>
         prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
@@ -761,7 +955,7 @@ export function AdminStoreProvider({ children }) {
       invalidateCatalogCache()
       pushToast('Product updated — storefront refreshed')
     },
-    [pushToast],
+    [categories, pushToast],
   )
 
   const deleteProduct = useCallback(
@@ -975,6 +1169,44 @@ export function AdminStoreProvider({ children }) {
         pushToast('Order status updated')
       } catch (err) {
         pushToast(err?.message || 'Failed to update order status', 'error')
+      }
+    },
+    [orders, pushToast],
+  )
+
+  const updateOrderPets = useCallback(
+    async (id, petsInput) => {
+      const current = orders.find((o) => o.id === id)
+      if (!current) {
+        pushToast('Order not found', 'error')
+        return
+      }
+      const pets = (Array.isArray(petsInput) ? petsInput : [])
+        .map((pet, index) => {
+          if (!pet) return null
+          const name = String(pet.name || '').trim()
+          if (!name) return null
+          return {
+            id: pet.id || `pet-${Date.now()}-${index}`,
+            name,
+            ...(pet.type || pet.petType
+              ? { type: pet.type || pet.petType }
+              : {}),
+            ...(pet.breed ? { breed: String(pet.breed).trim() } : {}),
+            ...(pet.notes ? { notes: String(pet.notes).trim() } : {}),
+          }
+        })
+        .filter(Boolean)
+      const patch = { pets, updatedAt: new Date().toISOString() }
+      try {
+        await patchDocument('orders', id, patch)
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+        )
+        pushToast('Order pets updated')
+      } catch (err) {
+        pushToast(err?.message || 'Failed to update order pets', 'error')
+        throw err
       }
     },
     [orders, pushToast],
@@ -1209,11 +1441,58 @@ export function AdminStoreProvider({ children }) {
   const saveSettings = useCallback(
     async (data) => {
       const next = { ...data }
+      const taxPercent = Number(data.taxPercent)
+      const deliveryFee = Number(data.deliveryFee)
+      const freeThreshold = Number(data.freeDeliveryThreshold)
       try {
         if (isFirebaseConfigured) {
           await upsertDocument('storeSettings', 'default', stripUndefined(next))
+          // Canonical checkout sources — keep in sync with Settings page
+          if (Number.isFinite(taxPercent) && taxPercent >= 0) {
+            await upsertDocument(
+              'taxSettings',
+              'default',
+              stripUndefined({
+                defaultRate: taxPercent,
+                updatedAt: new Date().toISOString(),
+              }),
+            )
+            setTaxSettings((prev) => ({ ...prev, defaultRate: taxPercent }))
+          }
+          if (
+            (Number.isFinite(deliveryFee) && deliveryFee >= 0) ||
+            (Number.isFinite(freeThreshold) && freeThreshold >= 0)
+          ) {
+            const shipPatch = {
+              updatedAt: new Date().toISOString(),
+            }
+            if (Number.isFinite(deliveryFee) && deliveryFee >= 0) {
+              shipPatch.standardShippingFee = deliveryFee
+            }
+            if (Number.isFinite(freeThreshold) && freeThreshold >= 0) {
+              shipPatch.freeShippingMinOrder = freeThreshold
+            }
+            await upsertDocument(
+              'shippingSettings',
+              'default',
+              stripUndefined(shipPatch),
+            )
+            setShippingSettings((prev) => ({ ...prev, ...shipPatch }))
+          }
         }
-        setSettings((prev) => ({ ...prev, ...next }))
+        setSettings((prev) => ({
+          ...prev,
+          ...next,
+          taxPercent: Number.isFinite(taxPercent) && taxPercent >= 0 ? taxPercent : prev.taxPercent,
+          deliveryFee:
+            Number.isFinite(deliveryFee) && deliveryFee >= 0
+              ? deliveryFee
+              : prev.deliveryFee,
+          freeDeliveryThreshold:
+            Number.isFinite(freeThreshold) && freeThreshold >= 0
+              ? freeThreshold
+              : prev.freeDeliveryThreshold,
+        }))
         pushToast('Settings saved')
       } catch (err) {
         pushToast(err?.message || 'Failed to save settings', 'error')
@@ -1313,18 +1592,40 @@ export function AdminStoreProvider({ children }) {
 
   const saveShippingSettings = useCallback(
     async (data) => {
+      const fee = Number(data.standardShippingFee)
+      const freeMin = Number(data.freeShippingMinOrder)
       const next = {
         ...data,
+        standardShippingFee:
+          Number.isFinite(fee) && fee >= 0 ? fee : 0,
+        freeShippingMinOrder:
+          Number.isFinite(freeMin) && freeMin >= 0 ? freeMin : 0,
         priorityCities: normalizePriorityCities(data.priorityCities),
         serviceableStates:
           Array.isArray(data.serviceableStates) && data.serviceableStates.length
             ? data.serviceableStates
             : [...INDIA_STATES_AND_UTS],
+        updatedAt: new Date().toISOString(),
       }
       if (isFirebaseConfigured) {
         await upsertDocument('shippingSettings', 'default', stripUndefined(next))
+        // Keep Settings page fields in sync
+        await upsertDocument(
+          'storeSettings',
+          'default',
+          stripUndefined({
+            deliveryFee: next.standardShippingFee,
+            freeDeliveryThreshold: next.freeShippingMinOrder,
+            updatedAt: next.updatedAt,
+          }),
+        )
       }
       setShippingSettings((prev) => ({ ...prev, ...next }))
+      setSettings((prev) => ({
+        ...prev,
+        deliveryFee: next.standardShippingFee,
+        freeDeliveryThreshold: next.freeShippingMinOrder,
+      }))
       pushToast('Shipping settings saved')
     },
     [pushToast],
@@ -1332,14 +1633,25 @@ export function AdminStoreProvider({ children }) {
 
   const saveTaxSettings = useCallback(
     async (data) => {
+      const rate = Number(data.defaultRate)
       const next = {
         ...data,
-        defaultRate: Number(data.defaultRate) || 0,
+        defaultRate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
+        updatedAt: new Date().toISOString(),
       }
       if (isFirebaseConfigured) {
         await upsertDocument('taxSettings', 'default', stripUndefined(next))
+        await upsertDocument(
+          'storeSettings',
+          'default',
+          stripUndefined({
+            taxPercent: next.defaultRate,
+            updatedAt: next.updatedAt,
+          }),
+        )
       }
       setTaxSettings((prev) => ({ ...prev, ...next }))
+      setSettings((prev) => ({ ...prev, taxPercent: next.defaultRate }))
       pushToast('Tax settings saved')
     },
     [pushToast],
@@ -1413,12 +1725,18 @@ export function AdminStoreProvider({ children }) {
     [pushToast],
   )
 
+  const pendingOrderCount = useMemo(
+    () => orders.filter((o) => o.status === 'Pending').length,
+    [orders],
+  )
+
   const value = useMemo(
     () => ({
       products,
       categories,
       brands,
       orders,
+      pendingOrderCount,
       customers,
       reviews,
       coupons,
@@ -1454,6 +1772,7 @@ export function AdminStoreProvider({ children }) {
       updateBrand,
       deleteBrand,
       updateOrderStatus,
+      updateOrderPets,
       createReview,
       updateReview,
       updateReviewStatus,
@@ -1479,6 +1798,7 @@ export function AdminStoreProvider({ children }) {
       categories,
       brands,
       orders,
+      pendingOrderCount,
       customers,
       reviews,
       coupons,
@@ -1512,6 +1832,7 @@ export function AdminStoreProvider({ children }) {
       updateBrand,
       deleteBrand,
       updateOrderStatus,
+      updateOrderPets,
       createReview,
       updateReview,
       updateReviewStatus,

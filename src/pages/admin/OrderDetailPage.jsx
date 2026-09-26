@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -6,7 +6,9 @@ import {
   Circle,
   CreditCard,
   MapPin,
+  Plus,
   Printer,
+  Trash2,
   User,
 } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
@@ -17,13 +19,39 @@ import { printAdminOrder } from '../../admin/printOrder'
 import { ORDER_STATUSES } from '../../lib/orderStatus'
 import { useAdminStore } from '../../context/AdminStore'
 
+function newPetDraft(index = 0) {
+  return {
+    id: `pet-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+    name: '',
+  }
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams()
-  const { orders, updateOrderStatus } = useAdminStore()
+  const { orders, updateOrderStatus, updateOrderPets, settings } =
+    useAdminStore()
   const order = useMemo(() => orders.find((o) => o.id === id), [orders, id])
 
   const [pendingStatus, setPendingStatus] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [petsDraft, setPetsDraft] = useState([])
+  const [petsSaving, setPetsSaving] = useState(false)
+
+  useEffect(() => {
+    if (!order) return
+    const existing = Array.isArray(order.pets) ? order.pets : []
+    setPetsDraft(
+      existing.length
+        ? existing.map((pet, index) => ({
+            id: pet.id || `pet-${index + 1}`,
+            name: pet.name || '',
+            type: pet.type || pet.petType || '',
+            breed: pet.breed || '',
+            notes: pet.notes || '',
+          }))
+        : [],
+    )
+  }, [order])
 
   if (!order) {
     return (
@@ -59,6 +87,29 @@ export default function OrderDetailPage() {
     setPendingStatus(null)
   }
 
+  const updatePetField = (petId, key, value) => {
+    setPetsDraft((prev) =>
+      prev.map((pet) => (pet.id === petId ? { ...pet, [key]: value } : pet)),
+    )
+  }
+
+  const addPet = () => {
+    setPetsDraft((prev) => [...prev, newPetDraft(prev.length)])
+  }
+
+  const removePet = (petId) => {
+    setPetsDraft((prev) => prev.filter((pet) => pet.id !== petId))
+  }
+
+  const savePets = async () => {
+    setPetsSaving(true)
+    try {
+      await updateOrderPets(order.id, petsDraft)
+    } finally {
+      setPetsSaving(false)
+    }
+  }
+
   return (
     <div className="animate-fade-up space-y-6">
       <Link
@@ -73,20 +124,33 @@ export default function OrderDetailPage() {
         title={order.id}
         subtitle={`Placed on ${formatDateTime(order.createdAt)}`}
         actions={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex max-w-full flex-wrap items-center gap-2 sm:gap-3">
             <StatusBadge status={order.status} />
             <button
               type="button"
-              onClick={() => printAdminOrder(order)}
-              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-surface"
+              onClick={() =>
+                printAdminOrder(
+                  {
+                    ...order,
+                    pets: petsDraft
+                      .map((pet) => ({
+                        ...pet,
+                        name: String(pet.name || '').trim(),
+                      }))
+                      .filter((pet) => pet.name),
+                  },
+                  settings,
+                )
+              }
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-surface"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4 shrink-0" />
               Print Order
             </button>
             <select
               value={order.status}
               onChange={(e) => handleStatusSelect(e.target.value)}
-              className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="max-w-full shrink-0 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             >
               {ORDER_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -98,28 +162,33 @@ export default function OrderDetailPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[1fr_340px]">
+        <div className="min-w-0 space-y-6">
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
             <h2 className="text-lg font-bold text-ink">Line Items</h2>
             <ul className="mt-4 space-y-3">
               {order.items.map((item) => (
                 <li
                   key={`${item.productId}-${item.name}`}
-                  className="flex items-center gap-3 rounded-xl border border-line p-3"
+                  className="flex min-w-0 items-center gap-3 rounded-xl border border-line p-3"
                 >
                   <img
                     src={item.image}
                     alt=""
                     className="h-14 w-14 shrink-0 rounded-xl object-cover"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-ink">{item.name}</p>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p
+                      className="truncate font-semibold text-ink"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </p>
                     <p className="text-sm text-muted">
                       Qty {item.quantity} × {formatINR(item.price)}
                     </p>
                   </div>
-                  <p className="font-bold text-ink">
+                  <p className="shrink-0 font-bold text-ink">
                     {formatINR(item.price * item.quantity)}
                   </p>
                 </li>
@@ -156,6 +225,77 @@ export default function OrderDetailPage() {
             </dl>
           </section>
 
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-ink">Pets</h2>
+              <button
+                type="button"
+                onClick={addPet}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-surface"
+              >
+                <Plus className="h-4 w-4" />
+                Add Another Pet
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Enter custom pet names for this order. They appear on the printed
+              order.
+            </p>
+
+            {petsDraft.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">
+                No pets added yet. Click &ldquo;Add Another Pet&rdquo; to start.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {petsDraft.map((pet, index) => (
+                  <li
+                    key={pet.id}
+                    className="rounded-xl border border-line p-3 sm:p-4"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-ink">
+                        Pet {index + 1}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => removePet(pet.id)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-danger hover:bg-red-50"
+                        aria-label={`Remove pet ${index + 1}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remove
+                      </button>
+                    </div>
+                    <label className="block text-xs font-semibold text-muted">
+                      Pet Name
+                      <input
+                        type="text"
+                        value={pet.name}
+                        onChange={(e) =>
+                          updatePetField(pet.id, 'name', e.target.value)
+                        }
+                        placeholder="e.g. Bruno, Luna, Rocky"
+                        className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm font-medium text-ink outline-none transition focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={savePets}
+                disabled={petsSaving}
+                className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:opacity-60"
+              >
+                {petsSaving ? 'Saving…' : 'Save Pets'}
+              </button>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
             <h2 className="text-lg font-bold text-ink">Order Timeline</h2>
             <ol className="mt-5 space-y-4">
@@ -184,23 +324,30 @@ export default function OrderDetailPage() {
           </section>
         </div>
 
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
+        <div className="min-w-0 space-y-6">
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
             <div className="mb-3 flex items-center gap-2">
-              <User className="h-4 w-4 text-brand-600" />
+              <User className="h-4 w-4 shrink-0 text-brand-600" />
               <h2 className="font-bold text-ink">Customer</h2>
             </div>
-            <p className="font-semibold text-ink">{order.customer.name}</p>
-            <p className="mt-1 text-sm text-muted">{order.customer.email}</p>
-            <p className="text-sm text-muted">{order.customer.phone}</p>
+            <p
+              className="break-words font-semibold text-ink"
+              title={order.customer.name}
+            >
+              {order.customer.name}
+            </p>
+            <p className="mt-1 break-all text-sm text-muted">
+              {order.customer.email}
+            </p>
+            <p className="break-all text-sm text-muted">{order.customer.phone}</p>
           </section>
 
-          <section className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card sm:p-6">
             <div className="mb-3 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-brand-600" />
+              <MapPin className="h-4 w-4 shrink-0 text-brand-600" />
               <h2 className="font-bold text-ink">Shipping Address</h2>
             </div>
-            <address className="not-italic text-sm leading-relaxed text-ink-soft">
+            <address className="break-words not-italic text-sm leading-relaxed text-ink-soft">
               {order.shippingAddress.line1}
               {order.shippingAddress.line2 && (
                 <>

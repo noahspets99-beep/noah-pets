@@ -12,7 +12,6 @@ import {
   fsQuery,
   isFirebaseConfigured,
   patchDocument,
-  getDocument,
 } from '../services/firestore/repository'
 import {
   buildOrderTimeline,
@@ -44,19 +43,24 @@ function calcTax(subtotal, ratePercent) {
 }
 
 function calcShipping(subtotal, settings) {
+  const freeRaw = Number(settings?.freeShippingMinOrder)
+  const feeRaw = Number(settings?.standardShippingFee)
   const freeMin =
-    Number(settings?.freeShippingMinOrder) ||
-    seedShippingSettings.freeShippingMinOrder
+    Number.isFinite(freeRaw) && freeRaw >= 0
+      ? freeRaw
+      : Number(seedShippingSettings.freeShippingMinOrder) || 0
   const fee =
-    Number(settings?.standardShippingFee) ||
-    seedShippingSettings.standardShippingFee
+    Number.isFinite(feeRaw) && feeRaw >= 0
+      ? feeRaw
+      : Number(seedShippingSettings.standardShippingFee) || 0
   if (subtotal >= freeMin) return 0
   return fee
 }
 
 export function ShopProvider({ children }) {
   const { coupons: liveCoupons } = useCatalog()
-  const { shippingSettings: liveShipping } = useStoreContent()
+  const { shippingSettings: liveShipping, taxSettings: liveTax } =
+    useStoreContent()
   const { user, isAuthenticated } = useAuth()
   const [cart, setCart] = useState(() => loadJson(CART_KEY, []))
   const [wishlist, setWishlist] = useState(() => loadJson(WISHLIST_KEY, []))
@@ -64,12 +68,16 @@ export function ShopProvider({ children }) {
   const [appliedCoupon, setAppliedCoupon] = useState(() =>
     loadJson(COUPON_KEY, null),
   )
-  /** Admin-configured tax % from Firestore; default 0 until loaded/configured */
-  const [taxRatePercent, setTaxRatePercent] = useState(0)
   const [toast, setToast] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+
+  /** Live tax % from Admin taxSettings/default (realtime via StoreContentProvider) */
+  const taxRatePercent = useMemo(() => {
+    const rate = Number(liveTax?.defaultRate)
+    return Number.isFinite(rate) && rate >= 0 ? rate : 0
+  }, [liveTax])
 
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(cart))
@@ -90,37 +98,6 @@ export function ShopProvider({ children }) {
       localStorage.removeItem(COUPON_KEY)
     }
   }, [appliedCoupon])
-
-  // Live tax rate from Admin → Shipping & Tax (Firestore taxSettings/default)
-  useEffect(() => {
-    let cancelled = false
-    async function loadTax() {
-      if (!isFirebaseConfigured) {
-        setTaxRatePercent(0)
-        return
-      }
-      try {
-        const res = await getDocument('taxSettings', 'default')
-        if (cancelled) return
-        if (res.mode === 'firestore' && res.data) {
-          setTaxRatePercent(Number(res.data.defaultRate) || 0)
-        } else {
-          setTaxRatePercent(0)
-        }
-      } catch {
-        if (!cancelled) setTaxRatePercent(0)
-      }
-    }
-    loadTax()
-    const onFocus = () => loadTax()
-    window.addEventListener('focus', onFocus)
-    const interval = setInterval(loadTax, 60_000)
-    return () => {
-      cancelled = true
-      window.removeEventListener('focus', onFocus)
-      clearInterval(interval)
-    }
-  }, [])
 
   // Merge authenticated customer's Firestore orders (status updates from admin)
   useEffect(() => {
@@ -397,7 +374,10 @@ export function ShopProvider({ children }) {
       }
       const order = {
         ...orderPayload,
-        id: `ORD-${Date.now().toString().slice(-6)}`,
+        id:
+          orderPayload.id && /^\d{6}$/.test(String(orderPayload.id))
+            ? String(orderPayload.id)
+            : String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0'),
         createdAt: new Date().toISOString(),
         items: cart.map((item) => ({ ...item })),
         subtotal: cartSubtotal,

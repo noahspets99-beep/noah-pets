@@ -83,7 +83,7 @@ export default function AdminLayout() {
           title={resolveTitle(location.pathname)}
           onMenuClick={() => setMobileOpen(true)}
         />
-        <main className="px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        <main className="min-w-0 overflow-x-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
           <Outlet />
         </main>
       </div>

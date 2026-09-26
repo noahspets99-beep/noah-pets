@@ -12,7 +12,10 @@ import {
   mergeHomepageSections,
 } from '../data/homepageSections'
 import { DEFAULT_SEO } from '../config/store'
-import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
+import {
+  shippingSettings as seedShippingSettings,
+  taxSettings as seedTaxSettings,
+} from '../data/shippingTax'
 import {
   normalizePriorityCities,
 } from '../data/indiaCities'
@@ -85,6 +88,11 @@ export function StoreContentProvider({ children }) {
     priorityCities: normalizePriorityCities(seedShippingSettings.priorityCities),
   }))
   const [shippingReady, setShippingReady] = useState(!isFirebaseConfigured)
+  const [taxSettings, setTaxSettings] = useState(() => ({
+    ...seedTaxSettings,
+    defaultRate: Number(seedTaxSettings.defaultRate) || 0,
+  }))
+  const [taxReady, setTaxReady] = useState(!isFirebaseConfigured)
   const [approvedReviews, setApprovedReviews] = useState([])
   const [reviewsReady, setReviewsReady] = useState(!isFirebaseConfigured)
   const [storeSettings, setStoreSettings] = useState(null)
@@ -101,6 +109,11 @@ export function StoreContentProvider({ children }) {
       setHomepageReady(true)
       setShippingSettings({ ...seedShippingSettings })
       setShippingReady(true)
+      setTaxSettings({
+        ...seedTaxSettings,
+        defaultRate: Number(seedTaxSettings.defaultRate) || 0,
+      })
+      setTaxReady(true)
       setApprovedReviews([])
       setReviewsReady(true)
       setStoreSettings(null)
@@ -187,6 +200,29 @@ export function StoreContentProvider({ children }) {
       },
     })
 
+    const unsubTax = subscribeDocument('taxSettings', 'default', {
+      onData: (docData) => {
+        if (cancelled) return
+        if (docData) {
+          const { id: _id, ...rest } = docData
+          const rate = Number(rest.defaultRate)
+          setTaxSettings((prev) => ({
+            ...prev,
+            ...rest,
+            defaultRate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
+          }))
+        } else {
+          setTaxSettings((prev) => ({ ...prev, defaultRate: 0 }))
+        }
+        setTaxReady(true)
+      },
+      onError: (message) => {
+        if (cancelled) return
+        console.warn('[store-content] taxSettings', message)
+        setTaxReady(true)
+      },
+    })
+
     const unsubReviews = subscribeCollection('reviews', APPROVED_REVIEWS_QUERY, {
       onData: (rows) => {
         if (cancelled) return
@@ -245,6 +281,7 @@ export function StoreContentProvider({ children }) {
       unsubSeo()
       unsubHomepage()
       unsubShipping()
+      unsubTax()
       unsubReviews()
       unsubBrands()
       unsubStore()
@@ -294,6 +331,8 @@ export function StoreContentProvider({ children }) {
       getSectionByKey,
       shippingSettings,
       shippingReady,
+      taxSettings,
+      taxReady,
       approvedReviews,
       reviewsReady,
       storeSettings,
@@ -312,6 +351,8 @@ export function StoreContentProvider({ children }) {
       getSectionByKey,
       shippingSettings,
       shippingReady,
+      taxSettings,
+      taxReady,
       approvedReviews,
       reviewsReady,
       storeSettings,
@@ -348,6 +389,11 @@ const FALLBACK = {
     cloneHomepageSections().find((s) => s.key === key) || null,
   shippingSettings: { ...seedShippingSettings },
   shippingReady: true,
+  taxSettings: {
+    ...seedTaxSettings,
+    defaultRate: Number(seedTaxSettings.defaultRate) || 0,
+  },
+  taxReady: true,
   approvedReviews: [],
   reviewsReady: true,
   storeSettings: null,

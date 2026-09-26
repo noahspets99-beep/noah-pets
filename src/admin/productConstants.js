@@ -4,6 +4,10 @@ export const PET_TYPES = [
   'Birds',
   'Fish',
   'Small Pets',
+  'Reptiles',
+  'Poultry',
+  'Primate',
+  'Other',
 ]
 
 export const PRODUCT_STATUSES = ['Active', 'Draft', 'Out of Stock']
@@ -22,7 +26,7 @@ export const EMPTY_PRODUCT = {
   price: '',
   mrp: '',
   discount: 0,
-  tax: 5,
+  tax: 0,
   stock: '',
   lowStockThreshold: 10,
   images: [''],

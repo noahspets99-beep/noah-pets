@@ -20,7 +20,7 @@ const STATUS_TABS = [
 const PAYMENT_FILTERS = ['All', 'Paid', 'Pending', 'Refunded']
 
 export default function OrdersPage() {
-  const { orders, dataStatus } = useAdminStore()
+  const { orders, dataStatus, settings } = useAdminStore()
   const [tab, setTab] = useState('All')
   const [search, setSearch] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('All')
@@ -167,18 +167,18 @@ export default function OrdersPage() {
         />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-white shadow-card md:block">
-            <table className="w-full text-left text-sm">
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white shadow-card md:block">
+            <table className="w-full table-fixed text-left text-sm">
               <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Order ID</th>
-                  <th className="px-4 py-3 font-semibold">Customer</th>
-                  <th className="px-4 py-3 font-semibold">Items</th>
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Amount</th>
-                  <th className="px-4 py-3 font-semibold">Payment</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
+                  <th className="w-[12%] px-4 py-3 font-semibold">Order ID</th>
+                  <th className="w-[20%] px-4 py-3 font-semibold">Customer</th>
+                  <th className="w-[8%] px-4 py-3 font-semibold">Items</th>
+                  <th className="w-[12%] px-4 py-3 font-semibold">Date</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Amount</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Payment</th>
+                  <th className="w-[10%] px-4 py-3 font-semibold">Status</th>
+                  <th className="w-[18%] px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,23 +187,30 @@ export default function OrdersPage() {
                     key={o.id}
                     className="border-t border-line transition hover:bg-surface/60"
                   >
-                    <td className="px-4 py-3 font-semibold text-ink">{o.id}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-ink">
+                    <td className="max-w-0 px-4 py-3 font-semibold text-ink">
+                      <span className="block truncate" title={String(o.id)}>
+                        {o.id}
+                      </span>
+                    </td>
+                    <td className="max-w-0 px-4 py-3">
+                      <p
+                        className="truncate font-medium text-ink"
+                        title={o.customer?.name || 'Customer'}
+                      >
                         {o.customer?.name || 'Customer'}
                       </p>
-                      <p className="text-xs text-muted">
+                      <p className="truncate text-xs text-muted">
                         {o.customer?.phone || '—'}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
                       {(o.items || []).reduce((s, i) => s + (i.quantity || 0), 0)}{' '}
                       items
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
                       {formatDate(o.createdAt)}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-ink">
+                    <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">
                       {formatINR(o.total)}
                     </td>
                     <td className="px-4 py-3">
@@ -216,14 +223,14 @@ export default function OrdersPage() {
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
                           to={`/admin/orders/${o.id}`}
-                          className="font-semibold text-brand-600 hover:text-brand-700"
+                          className="shrink-0 font-semibold text-brand-600 hover:text-brand-700"
                         >
                           View
                         </Link>
                         <button
                           type="button"
-                          onClick={() => printAdminOrder(o)}
-                          className="inline-flex items-center gap-1.5 font-semibold text-ink-soft hover:text-ink"
+                          onClick={() => printAdminOrder(o, settings)}
+                          className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-ink-soft hover:text-ink"
                           title={`Print order ${o.id}`}
                         >
                           <Printer className="h-3.5 w-3.5" />
@@ -241,19 +248,26 @@ export default function OrdersPage() {
             {items.map((o) => (
               <article
                 key={o.id}
-                className="rounded-2xl border border-line bg-white p-4 shadow-card"
+                className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-card"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-bold text-ink">{o.id}</p>
-                    <p className="text-sm text-muted">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate font-bold text-ink" title={String(o.id)}>
+                      {o.id}
+                    </p>
+                    <p
+                      className="truncate text-sm text-muted"
+                      title={o.customer?.name || 'Customer'}
+                    >
                       {o.customer?.name || 'Customer'}
                     </p>
-                    <p className="text-xs text-muted">
+                    <p className="truncate text-xs text-muted">
                       {o.customer?.phone || '—'}
                     </p>
                   </div>
-                  <StatusBadge status={o.status} />
+                  <div className="shrink-0">
+                    <StatusBadge status={o.status} />
+                  </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
@@ -285,7 +299,7 @@ export default function OrdersPage() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => printAdminOrder(o)}
+                    onClick={() => printAdminOrder(o, settings)}
                     className="inline-flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
                   >
                     <Printer className="h-4 w-4" />
