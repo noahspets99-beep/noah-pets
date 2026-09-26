@@ -164,6 +164,13 @@ function stripSecrets(order) {
   return safe
 }
 
+/** Persistable fields — keep accessTokenHash for guest verify; drop write token only. */
+function forPersist(order) {
+  if (!order) return null
+  const { _writeIdToken, ...safe } = order
+  return safe
+}
+
 function isAlreadyExistsError(err) {
   const code = err?.code
   return (
@@ -239,13 +246,29 @@ export async function createPendingOrder({
     }
 
     try {
-      // create() fails if the doc already exists — safe under concurrent writers
-      await db.collection('orders').doc(orderId).create(stripSecrets(order))
+      const ref = db.collection('orders').doc(String(orderId))
+      const payload = forPersist(order)
+
+      // Restore set()-based writes (working path before 6-digit ID / create() change).
+      const existing = await ref.get()
+      if (existing.exists) continue
+      await ref.set(payload)
+
       memoryOrders.set(orderId, order)
       return { order: stripSecrets(order), accessToken }
     } catch (err) {
       if (isAlreadyExistsError(err)) continue
-      throw err
+      console.error('[payments] pending order write failed', {
+        code: err?.code ?? null,
+        message: String(err?.message || err).slice(0, 200),
+        orderId,
+        attempt,
+      })
+      throw publicError(
+        500,
+        'order_create_failed',
+        'Unable to create order. Please try again.',
+      )
     }
   }
 
@@ -270,7 +293,7 @@ function omitUndefined(value) {
 }
 
 async function persistPaidOrder(order) {
-  const payload = omitUndefined(stripSecrets(order))
+  const payload = omitUndefined(forPersist(order))
   const orderId = order.id
   console.info('[payments] persist order', {
     collection: 'orders',

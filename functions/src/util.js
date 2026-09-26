@@ -38,14 +38,14 @@ export function generateOrderId() {
 
 /**
  * Razorpay `receipt` must be unique per merchant and is NOT the customer order ID.
- * Keep customer-facing 6-digit IDs in notes.internalOrderId / Firestore doc id only.
+ * Shape matches the previously working ORD-{stamp}-{rand} receipts.
+ * Customer-facing 6-digit IDs stay in notes.internalOrderId / Firestore doc id only.
  */
 export function razorpayReceiptForOrder(orderId) {
-  const id = String(orderId || '')
-    .replace(/[^0-9A-Za-z_-]/g, '')
-    .slice(0, 12)
-  const suffix = randomBytes(3).toString('hex')
-  return `np_${id}_${suffix}`.slice(0, 40)
+  const rand = randomBytes(3).toString('hex').toUpperCase()
+  return `ORD-${String(orderId || '')}-${rand}`
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 40)
 }
 
 export function publicError(status, code, message) {

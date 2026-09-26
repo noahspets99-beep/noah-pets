@@ -367,6 +367,15 @@ export function createApp() {
         taxRate,
         ...shippingSettings,
       })
+      console.info('[checkout/razorpay] totals', {
+        itemCount: lines.length,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        taxRate,
+        shipping: totals.shipping,
+        discount: totals.discount,
+        total: totals.total,
+      })
       if (totals.total < 1) {
         throw publicError(400, 'invalid_amount', 'Order total must be at least ₹1.')
       }
@@ -385,6 +394,11 @@ export function createApp() {
       })
 
       const checkout = await attachRazorpayOrder(order)
+      console.info('[checkout/razorpay] ok', {
+        customerOrderId: String(order.id),
+        razorpayOrderId: checkout.razorpayOrderId,
+        amountPaise: checkout.amountPaise,
+      })
       return res.status(201).json({
         ...checkout,
         orderId: String(order.id),
@@ -397,8 +411,9 @@ export function createApp() {
     } catch (err) {
       console.warn('[checkout/razorpay] failed', {
         status: err?.status || 500,
-        code: err?.code || 'server_error',
-        message: err?.expose ? err.message : 'hidden',
+        code: typeof err?.code === 'string' ? err.code : 'server_error',
+        grpcCode: typeof err?.code === 'number' ? err.code : null,
+        message: err?.expose ? err.message : String(err?.message || 'hidden').slice(0, 120),
       })
       return sendError(res, err)
     }
@@ -606,7 +621,11 @@ async function handleWebhookEvent(event) {
 
 function sendError(res, err) {
   const status = err?.status || 500
-  const code = err?.code || 'server_error'
+  // Never leak raw gRPC/Firestore numeric codes (e.g. 8) as the public error field.
+  const code =
+    typeof err?.code === 'string' && err.code
+      ? err.code
+      : 'server_error'
   const message =
     err?.expose || status < 500
       ? err.message || 'Request failed.'
