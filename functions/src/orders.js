@@ -14,6 +14,7 @@ import {
   createOrderAccessToken,
   generateOrderId,
   hashToken,
+  isQuotaError,
   publicError,
   safeEqual,
 } from './util.js'
@@ -246,13 +247,9 @@ export async function createPendingOrder({
     }
 
     try {
-      const ref = db.collection('orders').doc(String(orderId))
-      const payload = forPersist(order)
-
-      // Restore set()-based writes (working path before 6-digit ID / create() change).
-      const existing = await ref.get()
-      if (existing.exists) continue
-      await ref.set(payload)
+      // Single set(), same as the last working checkout. A pre-write get()
+      // burns a read and fails the whole request when Firestore read quota is exhausted.
+      await db.collection('orders').doc(String(orderId)).set(omitUndefined(forPersist(order)))
 
       memoryOrders.set(orderId, order)
       return { order: stripSecrets(order), accessToken }
@@ -264,6 +261,13 @@ export async function createPendingOrder({
         orderId,
         attempt,
       })
+      if (isQuotaError(err)) {
+        throw publicError(
+          503,
+          'store_unavailable',
+          'Checkout is temporarily unavailable because the store database quota is exceeded. Please try again in a little while.',
+        )
+      }
       throw publicError(
         500,
         'order_create_failed',
@@ -280,6 +284,7 @@ export async function createPendingOrder({
 }
 
 function omitUndefined(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
   if (Array.isArray(value)) return value.map(omitUndefined)
   if (value && typeof value === 'object') {
     const out = {}
@@ -304,7 +309,7 @@ async function persistPaidOrder(order) {
   })
 
   if (db) {
-    await db.collection('orders').doc(orderId).set(payload, { merge: true })
+    await db.collection('orders').doc(String(orderId)).set(payload, { merge: true })
     console.info('[payments] persist order ok', { collection: 'orders', orderId })
     return true
   }
@@ -345,7 +350,8 @@ export async function getOrder(orderId) {
   if (!db) initAdmin()
   const snap = await db.collection('orders').doc(id).get()
   if (!snap.exists) return null
-  return { id: snap.id, ...snap.data() }
+  const data = snap.data() || {}
+  return { ...data, id: data.id || snap.id }
 }
 
 export async function getOrderByRazorpayOrderId(razorpayOrderId) {
@@ -393,7 +399,7 @@ export async function updateOrder(orderId, patch) {
     memoryOrders.set(id, next)
     if (db) {
       try {
-        await db.collection('orders').doc(id).set({ ...patch, updatedAt }, { merge: true })
+        await db.collection('orders').doc(String(id)).set({ ...patch, updatedAt }, { merge: true })
       } catch (err) {
         console.warn(
           '[payments] Firestore order update failed',
@@ -404,7 +410,7 @@ export async function updateOrder(orderId, patch) {
     return stripSecrets(next)
   }
   if (!db) initAdmin()
-  await db.collection('orders').doc(id).set({ ...patch, updatedAt }, { merge: true })
+  await db.collection('orders').doc(String(id)).set({ ...patch, updatedAt }, { merge: true })
   return stripSecrets(await getOrder(id))
 }
 
@@ -511,7 +517,7 @@ export async function markOrderPaid({
   if (!db) initAdmin()
 
   return db.runTransaction(async (tx) => {
-    const ref = db.collection('orders').doc(orderId)
+    const ref = db.collection('orders').doc(String(orderId))
     const snap = await tx.get(ref)
     if (!snap.exists) {
       throw publicError(404, 'order_not_found', 'Order does not exist.')

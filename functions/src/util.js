@@ -48,6 +48,16 @@ export function razorpayReceiptForOrder(orderId) {
     .slice(0, 40)
 }
 
+export function isQuotaError(err) {
+  const code = err?.code
+  return (
+    code === 8 ||
+    code === 'resource-exhausted' ||
+    code === 'RESOURCE_EXHAUSTED' ||
+    /RESOURCE_EXHAUSTED|Quota exceeded/i.test(String(err?.message || ''))
+  )
+}
+
 export function publicError(status, code, message) {
   const err = new Error(message)
   err.status = status

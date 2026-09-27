@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { publicError } from './util.js'
+import { isQuotaError, publicError } from './util.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const catalogPrices = JSON.parse(
@@ -81,12 +81,18 @@ async function fetchPublicProduct(productId) {
   )
   try {
     const res = await fetch(url)
+    if (res.status === 429) {
+      const err = new Error('Quota exceeded.')
+      err.code = 8
+      throw err
+    }
     if (!res.ok) return null
     const json = await res.json()
     const data = decodeFirestoreDocument(json)
     productCache.set(productId, { at: Date.now(), data })
     return data
   } catch (err) {
+    if (isQuotaError(err)) throw err
     console.warn('[payments] Public product lookup failed', err?.message || err)
     return null
   }
@@ -163,16 +169,23 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
   let stock = null
 
   let data = null
+  let lookupError = null
   if (db) {
     try {
       const snap = await db.collection('products').doc(String(productId)).get()
       if (snap.exists) data = snap.data()
     } catch (err) {
+      lookupError = err
       console.warn('[payments] Admin product lookup failed', err?.message || err)
     }
   }
   if (!data) {
-    data = await fetchPublicProduct(String(productId))
+    try {
+      data = await fetchPublicProduct(String(productId))
+    } catch (err) {
+      lookupError = err
+      console.warn('[payments] Public product lookup failed', err?.message || err)
+    }
   }
 
   if (data) {
@@ -194,6 +207,13 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
   if (unitPrice == null || Number.isNaN(unitPrice)) {
     const catalog = catalogPrices[String(productId)]
     if (!catalog) {
+      if (isQuotaError(lookupError)) {
+        throw publicError(
+          503,
+          'store_unavailable',
+          'Checkout is temporarily unavailable because the store database quota is exceeded. Please try again in a little while.',
+        )
+      }
       throw publicError(400, 'product_not_found', 'One or more products were not found.')
     }
     name = catalog.name
