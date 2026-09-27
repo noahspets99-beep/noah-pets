@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Heart,
@@ -16,17 +16,13 @@ import {
 import { absoluteUrl } from '../lib/slug'
 import { STORE } from '../config/store'
 import { useCatalog } from '../context/CatalogProvider'
+import { useStoreContent } from '../context/StoreContentProvider'
 import { useShop } from '../context/useShop'
 import {
   firstAvailableVariant,
   isProductInStock,
   productStock,
 } from '../services/catalogMapper'
-import {
-  fsQuery,
-  isFirebaseConfigured,
-  listCollection,
-} from '../services/firestore/repository'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -64,94 +60,36 @@ export default function ProductDetailPage() {
   const navigate = useNavigate()
   const { addToCart, toggleWishlist, isWishlisted } = useShop()
   const { products, getProductBySlug } = useCatalog()
+  const { approvedReviews, reviewsReady } = useStoreContent()
   const product = useMemo(
     () => getProductBySlug(slug),
     [slug, getProductBySlug],
   )
-
+  const reviews = useMemo(() => {
+    if (!product?.id || !reviewsReady) return []
+    return (approvedReviews || [])
+      .filter((r) => String(r.productId) === String(product.id))
+      .map(mapReviewDoc)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  }, [product, approvedReviews, reviewsReady])
+  const reviewsLoading = Boolean(product?.id) && !reviewsReady
+  const resetKey = `${slug || ''}:${product?.id || ''}`
+  const [seenProduct, setSeenProduct] = useState(resetKey)
   const [activeImage, setActiveImage] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const [qty, setQty] = useState(1)
   const [tab, setTab] = useState('description')
   const [variantId, setVariantId] = useState(null)
-  const [reviews, setReviews] = useState([])
-  const [reviewsLoading, setReviewsLoading] = useState(false)
 
-  // Reset UI state when navigating between products (avoid stale images/variants/reviews)
-  useEffect(() => {
+  if (seenProduct !== resetKey) {
+    setSeenProduct(resetKey)
     setActiveImage(0)
     setLightbox(false)
     setQty(1)
     setTab('description')
     setVariantId(null)
-    setReviews([])
-  }, [slug, product?.id])
-
-  // Load only Approved reviews for this productId
-  useEffect(() => {
-    let cancelled = false
-    const productId = product?.id
-    if (!productId) {
-      setReviews([])
-      setReviewsLoading(false)
-      return undefined
-    }
-
-    async function loadReviews() {
-      setReviewsLoading(true)
-      if (!isFirebaseConfigured) {
-        if (!cancelled) {
-          setReviews([])
-          setReviewsLoading(false)
-        }
-        return
-      }
-      try {
-        let rows = []
-        try {
-          const res = await listCollection('reviews', [
-            fsQuery.where('productId', '==', productId),
-            fsQuery.where('status', '==', 'Approved'),
-          ])
-          if (res.mode === 'firestore' && Array.isArray(res.data)) {
-            rows = res.data
-          }
-        } catch (compoundErr) {
-          // Fallback if composite index missing: filter Approved client-side by productId
-          console.warn(
-            '[pdp] compound reviews query failed, falling back',
-            compoundErr?.message || compoundErr,
-          )
-          const res = await listCollection('reviews', [
-            fsQuery.where('status', '==', 'Approved'),
-          ])
-          if (res.mode === 'firestore' && Array.isArray(res.data)) {
-            rows = res.data.filter((r) => String(r.productId) === String(productId))
-          }
-        }
-        if (cancelled) return
-        const mapped = rows
-          .filter((r) => String(r.productId) === String(productId))
-          .filter((r) => String(r.status || '') === 'Approved')
-          .map(mapReviewDoc)
-          .filter(Boolean)
-          .sort(
-            (a, b) => new Date(b.date || 0) - new Date(a.date || 0),
-          )
-        setReviews(mapped)
-      } catch (err) {
-        console.warn('[pdp] reviews load failed', err?.message || err)
-        if (!cancelled) setReviews([])
-      } finally {
-        if (!cancelled) setReviewsLoading(false)
-      }
-    }
-
-    loadReviews()
-    return () => {
-      cancelled = true
-    }
-  }, [product?.id])
+  }
 
   const selectedVariant =
     product?.variants?.find((v) => v.id === variantId) ||

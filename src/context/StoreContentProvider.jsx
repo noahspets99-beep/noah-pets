@@ -20,17 +20,11 @@ import {
   normalizePriorityCities,
 } from '../data/indiaCities'
 import {
-  fsQuery,
   isFirebaseConfigured,
-  subscribeCollection,
-  subscribeDocument,
 } from '../services/firestore/repository'
+import { loadPublicStorefront } from '../services/cache/publicStorefront'
 
 const StoreContentContext = createContext(null)
-
-const PUBLISHED_BLOG_QUERY = [fsQuery.where('status', '==', 'Published')]
-const APPROVED_REVIEWS_QUERY = [fsQuery.where('status', '==', 'Approved')]
-const ACTIVE_BRANDS_QUERY = [fsQuery.where('active', '==', true)]
 
 function normalizeStorefrontPost(raw) {
   if (!raw) return null
@@ -68,6 +62,7 @@ function normalizeStorefrontReview(raw) {
     rating: Number(raw.rating) || 5,
     review: raw.review || raw.comment || raw.text || '',
     product: raw.product || raw.productName || '',
+    productId: raw.productId || null,
     status: raw.status || 'Approved',
   }
 }
@@ -100,191 +95,115 @@ export function StoreContentProvider({ children }) {
   const [brandsReady, setBrandsReady] = useState(!isFirebaseConfigured)
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setBlogPosts(seedPublishedPosts())
-      setBlogReady(true)
-      setSeoSettings(null)
-      setSeoReady(true)
-      setHomepageSections(cloneHomepageSections())
-      setHomepageReady(true)
-      setShippingSettings({ ...seedShippingSettings })
-      setShippingReady(true)
-      setTaxSettings({
-        ...seedTaxSettings,
-        defaultRate: Number(seedTaxSettings.defaultRate) || 0,
-      })
-      setTaxReady(true)
-      setApprovedReviews([])
-      setReviewsReady(true)
-      setStoreSettings(null)
-      setBrands([])
-      setBrandsReady(true)
-      return undefined
-    }
+    if (!isFirebaseConfigured) return undefined
 
     let cancelled = false
-    const unsubBlog = subscribeCollection('blogPosts', PUBLISHED_BLOG_QUERY, {
-      onData: (rows) => {
-        if (cancelled) return
-        const next = (rows || [])
-          .map(normalizeStorefrontPost)
-          .filter(Boolean)
-          .sort(
-            (a, b) =>
-              new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0),
-          )
-        setBlogPosts(next)
-        setBlogReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] blogPosts', message)
-        setBlogPosts([])
-        setBlogReady(true)
-      },
-    })
 
-    const unsubSeo = subscribeDocument('seoSettings', 'default', {
-      onData: (docData) => {
-        if (cancelled) return
-        if (docData) {
-          const { id: _id, ...rest } = docData
-          setSeoSettings(rest)
-        } else {
-          setSeoSettings(null)
-        }
-        setSeoReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] seoSettings', message)
+    const apply = (data) => {
+      if (cancelled || !data) return
+      const nextPosts = (data.blogPosts || [])
+        .map(normalizeStorefrontPost)
+        .filter(Boolean)
+        .sort(
+          (a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0),
+        )
+      setBlogPosts(nextPosts)
+      setBlogReady(true)
+
+      if (data.seoSettings) {
+        const rest = { ...data.seoSettings }
+        delete rest.id
+        setSeoSettings(rest)
+      } else {
         setSeoSettings(null)
-        setSeoReady(true)
-      },
-    })
+      }
+      setSeoReady(true)
 
-    const unsubHomepage = subscribeCollection('homepageSections', [], {
-      onData: (rows) => {
-        if (cancelled) return
-        setHomepageSections(mergeHomepageSections(rows || []))
-        setHomepageReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] homepageSections', message)
-        setHomepageSections(cloneHomepageSections())
-        setHomepageReady(true)
-      },
-    })
+      setHomepageSections(mergeHomepageSections(data.homepageSections || []))
+      setHomepageReady(true)
 
-    const unsubShipping = subscribeDocument('shippingSettings', 'default', {
-      onData: (docData) => {
-        if (cancelled) return
-        if (docData) {
-          const { id: _id, ...rest } = docData
-          setShippingSettings((prev) => ({
-            ...prev,
-            ...rest,
-            // Empty array is a valid Admin clear — do not keep stale seed cities
-            priorityCities: Array.isArray(rest.priorityCities)
-              ? normalizePriorityCities(rest.priorityCities)
-              : prev.priorityCities,
-          }))
-        }
-        setShippingReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] shippingSettings', message)
-        setShippingReady(true)
-      },
-    })
+      if (data.shippingSettings) {
+        const rest = { ...data.shippingSettings }
+        delete rest.id
+        setShippingSettings((prev) => ({
+          ...prev,
+          ...rest,
+          priorityCities: Array.isArray(rest.priorityCities)
+            ? normalizePriorityCities(rest.priorityCities)
+            : prev.priorityCities,
+        }))
+      }
+      setShippingReady(true)
 
-    const unsubTax = subscribeDocument('taxSettings', 'default', {
-      onData: (docData) => {
-        if (cancelled) return
-        if (docData) {
-          const { id: _id, ...rest } = docData
-          const rate = Number(rest.defaultRate)
-          setTaxSettings((prev) => ({
-            ...prev,
-            ...rest,
-            defaultRate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
-          }))
-        } else {
-          setTaxSettings((prev) => ({ ...prev, defaultRate: 0 }))
-        }
-        setTaxReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] taxSettings', message)
-        setTaxReady(true)
-      },
-    })
+      if (data.taxSettings) {
+        const rest = { ...data.taxSettings }
+        delete rest.id
+        const rate = Number(rest.defaultRate)
+        setTaxSettings((prev) => ({
+          ...prev,
+          ...rest,
+          defaultRate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
+        }))
+      } else {
+        setTaxSettings((prev) => ({ ...prev, defaultRate: 0 }))
+      }
+      setTaxReady(true)
 
-    const unsubReviews = subscribeCollection('reviews', APPROVED_REVIEWS_QUERY, {
-      onData: (rows) => {
-        if (cancelled) return
-        setApprovedReviews(
-          (rows || []).map(normalizeStorefrontReview).filter(Boolean),
-        )
-        setReviewsReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] reviews', message)
-        setApprovedReviews([])
-        setReviewsReady(true)
-      },
-    })
+      setApprovedReviews(
+        (data.reviews || []).map(normalizeStorefrontReview).filter(Boolean),
+      )
+      setReviewsReady(true)
 
-    const unsubBrands = subscribeCollection('brands', ACTIVE_BRANDS_QUERY, {
-      onData: (rows) => {
-        if (cancelled) return
-        setBrands(
-          (rows || []).sort(
-            (a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0),
-          ),
-        )
-        setBrandsReady(true)
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] brands', message)
-        // Fallback: try unfiltered if active index/query fails
-        setBrands([])
-        setBrandsReady(true)
-      },
-    })
+      setBrands(
+        (data.brands || []).sort(
+          (a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0),
+        ),
+      )
+      setBrandsReady(true)
 
-    const unsubStore = subscribeDocument('storeSettings', 'default', {
-      onData: (docData) => {
-        if (cancelled) return
-        if (docData) {
-          const { id: _id, ...rest } = docData
-          setStoreSettings(rest)
-        } else {
-          setStoreSettings(null)
-        }
-      },
-      onError: (message) => {
-        if (cancelled) return
-        console.warn('[store-content] storeSettings', message)
+      if (data.storeSettings) {
+        const rest = { ...data.storeSettings }
+        delete rest.id
+        setStoreSettings(rest)
+      } else {
         setStoreSettings(null)
-      },
-    })
+      }
+    }
+
+    const pull = ({ force = false } = {}) => {
+      loadPublicStorefront({ force })
+        .then((result) => {
+          if (cancelled) return
+          apply(result?.data)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          console.warn('[store-content]', err?.code || err?.message || err)
+          setBlogReady(true)
+          setSeoReady(true)
+          setHomepageReady(true)
+          setShippingReady(true)
+          setTaxReady(true)
+          setReviewsReady(true)
+          setBrandsReady(true)
+        })
+    }
+
+    pull()
+
+    const onInvalidate = () => {
+      if (!cancelled) pull({ force: true })
+    }
+    const onUpdated = () => {
+      if (!cancelled) pull()
+    }
+    window.addEventListener('noah:catalog-invalidate', onInvalidate)
+    window.addEventListener('noah:storefront-updated', onUpdated)
 
     return () => {
       cancelled = true
-      unsubBlog()
-      unsubSeo()
-      unsubHomepage()
-      unsubShipping()
-      unsubTax()
-      unsubReviews()
-      unsubBrands()
-      unsubStore()
+      window.removeEventListener('noah:catalog-invalidate', onInvalidate)
+      window.removeEventListener('noah:storefront-updated', onUpdated)
     }
   }, [])
 

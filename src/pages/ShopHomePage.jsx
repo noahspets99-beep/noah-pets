@@ -16,6 +16,8 @@ import PromoBanner from '../components/PromoBanner'
 import ReviewsSection from '../components/ReviewsSection'
 import TrustFeatures from '../components/TrustFeatures'
 import SeoHead from '../components/seo/SeoHead'
+import DeferUntilVisible from '../components/DeferUntilVisible'
+import { useCatalog } from '../context/CatalogProvider'
 import { useStoreContent } from '../context/StoreContentProvider'
 import { getEnabledHomepageSections } from '../data/homepageSections'
 
@@ -77,6 +79,7 @@ function renderSection(section) {
 
 export default function ShopHomePage() {
   const { homepageSeo, homepageSections, homepageReady } = useStoreContent()
+  const { error: catalogError, products } = useCatalog()
   const sections = getEnabledHomepageSections(
     homepageReady && homepageSections?.length
       ? homepageSections
@@ -97,7 +100,16 @@ export default function ShopHomePage() {
         googleVerification={homepageSeo.googleVerification || undefined}
         analyticsId={homepageSeo.analyticsId || undefined}
       />
-      {sections.map((section) => renderSection(section))}
+      {catalogError && products.length > 0 ? (
+        <p className="mx-auto max-w-7xl px-4 pt-3 text-center text-xs text-muted">
+          Data may be temporarily outdated.
+        </p>
+      ) : null}
+      {sections.map((section, index) => {
+        const node = renderSection(section)
+        if (!node || index < 2) return node
+        return <DeferUntilVisible key={section.id}>{node}</DeferUntilVisible>
+      })}
     </>
   )
 }

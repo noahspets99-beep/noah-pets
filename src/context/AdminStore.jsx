@@ -32,6 +32,7 @@ import {
   removeDocument,
   getDocument,
   isFirebaseConfigured,
+  fsQuery,
 } from '../services/firestore/repository'
 import { invalidateCatalogCache } from './CatalogProvider'
 import { stripUndefined } from '../services/catalogMapper'
@@ -430,12 +431,17 @@ function applyOrderTimeline(order, status) {
   })
 }
 
+const notifiedOrderIds = new Set()
+
 async function ensureOrderNotifications(orders) {
   if (!isFirebaseConfigured || !Array.isArray(orders)) return
-  const pending = orders.filter((o) => o.status === 'Pending')
+  const pending = orders.filter(
+    (o) => o.status === 'Pending' && !notifiedOrderIds.has(String(o.id)),
+  )
   await Promise.all(
     pending.map(async (order) => {
       const id = `order-${order.id}`
+      notifiedOrderIds.add(String(order.id))
       try {
         const existing = await getDocument('adminNotifications', id)
         if (existing.mode === 'firestore' && existing.data) return
@@ -458,6 +464,7 @@ async function ensureOrderNotifications(orders) {
           }),
         )
       } catch (err) {
+        notifiedOrderIds.delete(String(order.id))
         console.warn('[admin] notification create', id, err?.message || err)
       }
     }),
@@ -754,7 +761,10 @@ export function AdminStoreProvider({ children }) {
           })
         }
 
-        unsubNotifications = subscribeCollection('adminNotifications', [], {
+        unsubNotifications = subscribeCollection(
+          'adminNotifications',
+          [fsQuery.orderBy('createdAt', 'desc'), fsQuery.limit(40)],
+          {
           onData: (rows) => {
             if (cancelled) return
             const list = (rows || [])

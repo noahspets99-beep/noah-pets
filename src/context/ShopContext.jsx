@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
 import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
 import { decreaseStockForCartItems } from '../services/inventoryService'
-import { invalidateCatalogCache } from './CatalogProvider'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
 import { useCatalog } from './CatalogProvider'
 import { useStoreContent } from './StoreContentProvider'
@@ -369,8 +368,6 @@ export function ShopProvider({ children }) {
     (orderPayload) => {
       if (!isFirebaseConfigured) {
         decreaseStockForCartItems(cart)
-      } else {
-        invalidateCatalogCache()
       }
       const order = {
         ...orderPayload,
@@ -423,12 +420,8 @@ export function ShopProvider({ children }) {
       if (!serverOrder?.id) {
         throw new Error('Invalid server order')
       }
-      if (adjustInventory) {
-        if (isFirebaseConfigured) {
-          invalidateCatalogCache()
-        } else if (Array.isArray(serverOrder.items)) {
-          decreaseStockForCartItems(serverOrder.items)
-        }
+      if (adjustInventory && !isFirebaseConfigured && Array.isArray(serverOrder.items)) {
+        decreaseStockForCartItems(serverOrder.items)
       }
       const order = {
         ...serverOrder,

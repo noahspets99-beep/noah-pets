@@ -20,6 +20,12 @@ import { db, isFirebaseConfigured } from '../../lib/firebase'
 
 export { isFirebaseConfigured }
 
+function traceRead(kind, name) {
+  if (import.meta.env.DEV) {
+    console.info('[Firestore]', kind, name)
+  }
+}
+
 export async function listCollection(name, constraints = []) {
   if (!isFirebaseConfigured || !db) {
     return {
@@ -31,6 +37,7 @@ export async function listCollection(name, constraints = []) {
   const q = constraints.length
     ? query(collection(db, name), ...constraints)
     : collection(db, name)
+  traceRead('query', name)
   const snap = await getDocs(q)
   return {
     mode: 'firestore',
@@ -51,6 +58,7 @@ export function subscribeCollection(name, constraints, { onData, onError } = {})
     ? query(collection(db, name), ...constraints)
     : collection(db, name)
 
+  traceRead('listen', name)
   return onSnapshot(
     q,
     (snap) => {
@@ -71,6 +79,7 @@ export async function getDocument(name, id) {
       error: 'Firebase is not configured',
     }
   }
+  traceRead('get', `${name}/${id}`)
   const snap = await getDoc(doc(db, name, id))
   if (!snap.exists()) return { mode: 'firestore', data: null }
   return { mode: 'firestore', data: { id: snap.id, ...snap.data() } }
@@ -105,6 +114,7 @@ export function subscribeDocument(name, id, { onData, onError } = {}) {
     onError?.('Firebase is not configured')
     return () => {}
   }
+  traceRead('listen', `${name}/${id}`)
   return onSnapshot(
     doc(db, name, id),
     (snap) => {
