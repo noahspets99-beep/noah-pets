@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
 import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
+import { shippingFeeForOrder } from '../lib/shippingFee'
 import { decreaseStockForCartItems } from '../services/inventoryService'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
 import { useCatalog } from './CatalogProvider'
@@ -39,21 +40,6 @@ function calcTax(subtotal, ratePercent) {
   const rate = Number(ratePercent)
   if (!Number.isFinite(rate) || rate <= 0) return 0
   return Math.round((subtotal * rate) / 100)
-}
-
-function calcShipping(subtotal, settings) {
-  const freeRaw = Number(settings?.freeShippingMinOrder)
-  const feeRaw = Number(settings?.standardShippingFee)
-  const freeMin =
-    Number.isFinite(freeRaw) && freeRaw >= 0
-      ? freeRaw
-      : Number(seedShippingSettings.freeShippingMinOrder) || 0
-  const fee =
-    Number.isFinite(feeRaw) && feeRaw >= 0
-      ? feeRaw
-      : Number(seedShippingSettings.standardShippingFee) || 0
-  if (subtotal >= freeMin) return 0
-  return fee
 }
 
 export function ShopProvider({ children }) {
@@ -311,11 +297,13 @@ export function ShopProvider({ children }) {
     return Math.min(computed, cartSubtotal)
   }, [appliedCoupon, cartSubtotal])
 
+  // Free-shipping threshold is the subtotal after discount.
   const shipping = useMemo(
     () =>
-      calcShipping(
+      shippingFeeForOrder(
         Math.max(0, cartSubtotal - couponDiscount),
-        liveShipping || seedShippingSettings,
+        liveShipping,
+        seedShippingSettings,
       ),
     [cartSubtotal, couponDiscount, liveShipping],
   )

@@ -136,7 +136,8 @@ function buildPrintHtml(order, shopInput) {
   )
   const subtotal = Number(order.subtotal) || itemsSubtotal || 0
   const discount = Number(order.discount) || 0
-  const shipping = Number(order.deliveryFee ?? order.shipping ?? 0) || 0
+  const shipping =
+    Number(order.shipping != null ? order.shipping : order.deliveryFee) || 0
   const tax = Number(order.tax) || 0
   const total = Number(order.total) || 0
   const paymentStatus = order.paymentStatus || order.payment || '—'

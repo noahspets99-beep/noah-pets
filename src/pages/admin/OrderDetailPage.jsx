@@ -203,9 +203,9 @@ export default function OrderDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-muted">Delivery</dt>
                 <dd className="font-semibold">
-                  {order.deliveryFee === 0
-                    ? 'Free'
-                    : formatINR(order.deliveryFee)}
+                  {Number(order.shipping ?? order.deliveryFee) > 0
+                    ? formatINR(order.shipping ?? order.deliveryFee)
+                    : 'Free'}
                 </dd>
               </div>
               {order.discount > 0 && (

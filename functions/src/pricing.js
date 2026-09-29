@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isQuotaError, publicError } from './util.js'
 import { productStock } from '../../src/lib/sellableStock.js'
+import { shippingFeeForOrder } from '../../src/lib/shippingFee.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const catalogPrices = JSON.parse(
@@ -389,15 +390,10 @@ export function calculateTotals(lineItems, couponCode, couponDoc = null, options
   }
 
   const taxable = Math.max(0, subtotal - discount)
-  const freeMin =
-    Number(options.freeShippingMinOrder) >= 0
-      ? Number(options.freeShippingMinOrder)
-      : FREE_SHIPPING_MIN
-  const shipFee =
-    Number(options.standardShippingFee) >= 0
-      ? Number(options.standardShippingFee)
-      : STANDARD_SHIPPING_FEE
-  const shipping = taxable >= freeMin ? 0 : shipFee
+  const shipping = shippingFeeForOrder(taxable, options, {
+    freeShippingMinOrder: FREE_SHIPPING_MIN,
+    standardShippingFee: STANDARD_SHIPPING_FEE,
+  })
   const taxRate = Number(options.taxRate)
   const safeRate =
     Number.isFinite(taxRate) && taxRate > 0 ? taxRate : DEFAULT_TAX_RATE
