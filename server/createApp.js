@@ -271,6 +271,8 @@ export function createApp() {
         district: String(rawCustomer?.district || '').trim(),
         state: String(rawCustomer?.state || '').trim(),
         pincode: String(rawCustomer?.pincode || '').trim(),
+        landmark: String(rawCustomer?.landmark || '').trim(),
+        country: String(rawCustomer?.country || 'India').trim() || 'India',
       }
       if (!customer.name || !customer.email || customer.mobile.length !== 10) {
         throw publicError(400, 'invalid_customer', 'Customer details are required.')
@@ -309,6 +311,8 @@ export function createApp() {
         shippingAddress: shippingAddress || customer,
         customerId: authUid || null,
         writeIdToken,
+        paymentMethod: 'manual_whatsapp',
+        paymentProvider: 'manual_whatsapp',
       })
 
       return res.status(201).json({
@@ -318,6 +322,8 @@ export function createApp() {
         currency: order.currency,
         paymentStatus: order.paymentStatus,
         status: order.status,
+        paymentMethod: order.paymentMethod,
+        order,
       })
     } catch (err) {
       return sendError(res, err)
@@ -344,6 +350,8 @@ export function createApp() {
         district: String(rawCustomer?.district || '').trim(),
         state: String(rawCustomer?.state || '').trim(),
         pincode: String(rawCustomer?.pincode || '').trim(),
+        landmark: String(rawCustomer?.landmark || '').trim(),
+        country: String(rawCustomer?.country || 'India').trim() || 'India',
       }
       if (!customer.name || !customer.email || customer.mobile.length !== 10) {
         throw publicError(400, 'invalid_customer', 'Customer details are required.')

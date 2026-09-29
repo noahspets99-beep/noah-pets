@@ -141,13 +141,25 @@ export default function OrderDetailPage() {
               {order.customer?.name || order.shippingAddress.name}
             </p>
             <p className="mt-1 text-ink-soft">
-              {order.shippingAddress.address}
-              {order.shippingAddress.area
-                ? `, ${order.shippingAddress.area}`
+              {order.shippingAddress.address || order.shippingAddress.line1}
+              {order.shippingAddress.area || order.shippingAddress.line2
+                ? `, ${order.shippingAddress.area || order.shippingAddress.line2}`
+                : ''}
+              {order.shippingAddress.landmark
+                ? `, ${order.shippingAddress.landmark}`
                 : ''}
               <br />
-              {order.shippingAddress.city}, {order.shippingAddress.district},{' '}
-              {order.shippingAddress.state} {order.shippingAddress.pincode}
+              {[
+                order.shippingAddress.city,
+                order.shippingAddress.district,
+                order.shippingAddress.state,
+                order.shippingAddress.pincode,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              {order.shippingAddress.country
+                ? `, ${order.shippingAddress.country}`
+                : ''}
             </p>
           </section>
         )}

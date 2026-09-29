@@ -4,6 +4,33 @@ import { useStoreContent } from '../context/StoreContentProvider'
 import { reviews as seedReviews } from '../data/products'
 import SectionHeader from './SectionHeader'
 
+function reviewerInitial(name) {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || ''
+  const letter = firstName.charAt(0)
+  return letter ? letter.toUpperCase() : '?'
+}
+
+function ReviewAvatar({ review }) {
+  const src = String(review.avatar || '').trim()
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className="h-11 w-11 rounded-full object-cover"
+      />
+    )
+  }
+  return (
+    <span
+      className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-sm font-bold text-ink"
+      aria-hidden="true"
+    >
+      {reviewerInitial(review.name)}
+    </span>
+  )
+}
+
 /**
  * Homepage reviews — Approved reviews from Admin/Firestore when available.
  * No seed fallback when Firebase is configured (empty = hide section).
@@ -43,11 +70,7 @@ export default function ReviewsSection({ config = {} }) {
               className="flex h-full flex-col rounded-2xl border border-line bg-white p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift"
             >
               <div className="flex items-center gap-3">
-                <img
-                  src={review.avatar}
-                  alt=""
-                  className="h-11 w-11 rounded-full object-cover"
-                />
+                <ReviewAvatar review={review} />
                 <div>
                   <h3 className="text-sm font-bold text-ink">{review.name}</h3>
                   <p className="text-xs text-muted">

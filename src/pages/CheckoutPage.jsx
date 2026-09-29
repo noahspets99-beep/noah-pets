@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatPrice } from '../data/products'
-import { TN_DISTRICTS, STORE } from '../config/store'
+import { INDIA_STATES_AND_UTS } from '../data/indiaCities'
 import { useShop } from '../context/useShop'
 import { useAuth } from '../context/useAuth'
 import {
@@ -12,12 +12,14 @@ import {
   loadRazorpayCheckout,
   createPaymentOrder,
 } from '../services/payment/paymentService'
+import { isManualWhatsAppCheckout } from '../lib/checkoutPaymentMode'
 import SeoHead from '../components/seo/SeoHead'
 import {
   clearCheckoutDraft,
   loadCheckoutDraft,
   saveCheckoutDraft,
 } from '../lib/checkoutDraft'
+import { openOrderWhatsApp } from '../lib/orderWhatsApp'
 
 const initialForm = {
   name: '',
@@ -25,10 +27,26 @@ const initialForm = {
   email: '',
   address: '',
   area: '',
-  city: 'Chennai',
-  district: 'Chennai',
-  state: STORE.defaultState,
+  landmark: '',
+  city: '',
+  district: '',
+  state: '',
   pincode: '',
+  country: 'India',
+}
+
+function digitsOnly(value) {
+  return String(value || '').replace(/\D/g, '')
+}
+
+function isIndianMobile(value) {
+  const digits = digitsOnly(value)
+  const local = digits.length > 10 && digits.startsWith('91') ? digits.slice(-10) : digits
+  return /^[6-9]\d{9}$/.test(local)
+}
+
+function isIndianPincode(value) {
+  return /^[1-9]\d{5}$/.test(digitsOnly(value))
 }
 
 export default function CheckoutPage() {
@@ -38,6 +56,7 @@ export default function CheckoutPage() {
     cartSubtotal,
     couponDiscount,
     shipping,
+    tax,
     cartTotal,
     appliedCoupon,
     applyCoupon,
@@ -50,13 +69,15 @@ export default function CheckoutPage() {
   const [form, setForm] = useState(() => loadCheckoutDraft() || initialForm)
   const [couponCode, setCouponCode] = useState('')
   const [paying, setPaying] = useState(false)
+  const submittingRef = useRef(false)
   const provider = getActivePaymentProviderName()
+  const manualCheckout = isManualWhatsAppCheckout()
 
   useEffect(() => {
-    if (provider === 'razorpay') {
+    if (!manualCheckout && provider === 'razorpay') {
       loadRazorpayCheckout().catch(() => {})
     }
-  }, [provider])
+  }, [manualCheckout, provider])
 
   useEffect(() => {
     saveCheckoutDraft(form)
@@ -68,8 +89,44 @@ export default function CheckoutPage() {
       ...prev,
       name: prev.name || user.displayName || '',
       email: prev.email || user.email || '',
+      country: prev.country || 'India',
     }))
   }, [authReady, isAuthenticated, user])
+
+  useEffect(() => {
+    const pin = digitsOnly(form.pincode)
+    if (!isIndianPincode(pin)) return undefined
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${pin}`,
+          { signal: controller.signal },
+        )
+        if (!res.ok) return
+        const data = await res.json()
+        const office =
+          data?.[0]?.Status === 'Success' ? data[0].PostOffice?.[0] : null
+        if (!office) return
+        setForm((prev) => {
+          if (digitsOnly(prev.pincode) !== pin) return prev
+          const nextState = office.State || prev.state
+          return {
+            ...prev,
+            city: office.District || office.Block || office.Name || prev.city,
+            state: nextState,
+            country: 'India',
+          }
+        })
+      } catch {
+        /* Pincode lookup is optional. The customer can still type city and state. */
+      }
+    }, 400)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [form.pincode])
 
   const handleCoupon = (e) => {
     e?.preventDefault?.()
@@ -78,17 +135,26 @@ export default function CheckoutPage() {
 
   const onChange = (e) => {
     const { name, value } = e.target
+    if (name === 'mobile') {
+      setForm((prev) => ({ ...prev, mobile: digitsOnly(value).slice(0, 10) }))
+      return
+    }
+    if (name === 'pincode') {
+      setForm((prev) => ({ ...prev, pincode: digitsOnly(value).slice(0, 6) }))
+      return
+    }
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
   const validate = () => {
     if (!form.name.trim()) return 'Enter your name'
-    if (!/^\d{10}$/.test(form.mobile.replace(/\D/g, '').slice(-10)))
-      return 'Enter a valid 10-digit mobile'
+    if (!isIndianMobile(form.mobile)) return 'Enter a valid 10-digit mobile number'
     if (!form.email.includes('@')) return 'Enter a valid email'
-    if (!form.address.trim()) return 'Enter address'
+    if (!form.address.trim()) return 'Enter house / flat / building'
+    if (!form.area.trim()) return 'Enter street / area'
     if (!form.city.trim()) return 'Enter city'
-    if (!form.pincode || form.pincode.length < 6) return 'Enter a valid pincode'
+    if (!form.state.trim()) return 'Select a state'
+    if (!isIndianPincode(form.pincode)) return 'Enter a valid 6-digit PIN code'
     return null
   }
 
@@ -101,7 +167,7 @@ export default function CheckoutPage() {
     }
   }
 
-  const payAndPlace = async (e) => {
+  const payAndPlace = (e) => {
     e.preventDefault()
     if (cart.length === 0) {
       showToast('Your cart is empty', 'error')
@@ -112,7 +178,46 @@ export default function CheckoutPage() {
       showToast(err, 'error')
       return
     }
-    if (paying) return
+    if (manualCheckout) {
+      placeWhatsAppOrder()
+      return
+    }
+    void payWithProvider()
+  }
+
+  const placeWhatsAppOrder = () => {
+    const now = new Date()
+    const stamp = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('')
+    const serial = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')
+    const order = {
+      id: `WA-${stamp}-${serial}`,
+      customer: { ...form },
+      shippingAddress: { ...form },
+      items: cart.map((item) => ({
+        name: item.name,
+        variantLabel: item.variantLabel || '',
+        quantity: Number(item.quantity) || 1,
+        price: Number(item.price) || 0,
+        lineTotal: (Number(item.price) || 0) * (Number(item.quantity) || 1),
+      })),
+      subtotal: cartSubtotal,
+      discount: couponDiscount,
+      shipping,
+      tax,
+      total: cartTotal,
+      paymentMethod: 'manual_whatsapp',
+    }
+    openOrderWhatsApp(order)
+    showToast('WhatsApp opened — review the message and press Send')
+  }
+
+  const payWithProvider = async () => {
+    if (submittingRef.current) return
+    submittingRef.current = true
     setPaying(true)
     try {
       if (provider === 'razorpay') {
@@ -124,11 +229,12 @@ export default function CheckoutPage() {
       if (error?.code === 'cancelled') {
         showToast('Payment cancelled — your order was not charged', 'info')
       } else if (error?.name === 'AbortError' || error?.code === 'start_timeout') {
-        showToast('Payment could not be started. Please try again.', 'error')
+        showToast('Order could not be placed. Please try again.', 'error')
       } else {
-        showToast(error.message || 'Payment could not be started. Please try again.', 'error')
+        showToast(error.message || 'Order could not be placed. Please try again.', 'error')
       }
     } finally {
+      submittingRef.current = false
       setPaying(false)
     }
   }
@@ -166,6 +272,7 @@ export default function CheckoutPage() {
     })
     clearCheckoutDraft()
     showToast('Payment successful — order placed')
+    openOrderWhatsApp(order)
     navigate(`/orders/${order.id}`)
   }
 
@@ -238,6 +345,7 @@ export default function CheckoutPage() {
     })
     clearCheckoutDraft()
     showToast('Payment successful — order placed')
+    openOrderWhatsApp(localOrder)
     navigate(`/orders/${localOrder.id}`)
   }
 
@@ -262,7 +370,9 @@ export default function CheckoutPage() {
   const payDisabled = paying
   let payLabel
   if (paying) {
-    payLabel = 'Processing payment…'
+    payLabel = manualCheckout ? 'Placing order…' : 'Processing payment…'
+  } else if (manualCheckout) {
+    payLabel = 'Place Order'
   } else if (provider === 'razorpay') {
     payLabel = `Pay ${formatPrice(cartTotal)}`
   } else {
@@ -274,8 +384,10 @@ export default function CheckoutPage() {
       <SeoHead title="Checkout" noindex canonical="/checkout" />
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">Checkout</h1>
       <p className="mt-2 text-sm text-muted">
-        Delivery across India · Payment via{' '}
-        {provider === 'razorpay' ? 'Razorpay' : 'demo'} provider
+        Delivery across India
+        {manualCheckout
+          ? ''
+          : ` · Payment via ${provider === 'razorpay' ? 'Razorpay' : 'demo'} provider`}
       </p>
 
       <form
@@ -318,54 +430,32 @@ export default function CheckoutPage() {
               />
             </label>
             <label className="sm:col-span-2 text-sm font-semibold text-ink">
-              Address
+              House / Flat / Building
               <input
                 name="address"
                 value={form.address}
                 onChange={onChange}
                 required
+                autoComplete="address-line1"
                 className={fieldClass}
               />
             </label>
             <label className="text-sm font-semibold text-ink">
-              Area / Locality
+              Street / Area
               <input
                 name="area"
                 value={form.area}
                 onChange={onChange}
-                className={fieldClass}
-              />
-            </label>
-            <label className="text-sm font-semibold text-ink">
-              City
-              <input
-                name="city"
-                value={form.city}
-                onChange={onChange}
                 required
+                autoComplete="address-line2"
                 className={fieldClass}
               />
             </label>
             <label className="text-sm font-semibold text-ink">
-              District
-              <select
-                name="district"
-                value={form.district}
-                onChange={onChange}
-                className={fieldClass}
-              >
-                {TN_DISTRICTS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-ink">
-              State
+              Landmark <span className="font-normal text-muted">(optional)</span>
               <input
-                name="state"
-                value={form.state}
+                name="landmark"
+                value={form.landmark}
                 onChange={onChange}
                 className={fieldClass}
               />
@@ -378,7 +468,52 @@ export default function CheckoutPage() {
                 onChange={onChange}
                 required
                 inputMode="numeric"
+                autoComplete="postal-code"
                 maxLength={6}
+                placeholder="6-digit PIN"
+                className={fieldClass}
+              />
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              City
+              <input
+                name="city"
+                value={form.city}
+                onChange={onChange}
+                required
+                autoComplete="address-level2"
+                className={fieldClass}
+              />
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              State
+              <select
+                name="state"
+                value={form.state}
+                onChange={onChange}
+                required
+                autoComplete="address-level1"
+                className={fieldClass}
+              >
+                <option value="">Select state</option>
+                {(INDIA_STATES_AND_UTS.includes(form.state) || !form.state
+                  ? INDIA_STATES_AND_UTS
+                  : [form.state, ...INDIA_STATES_AND_UTS]
+                ).map((stateName) => (
+                  <option key={stateName} value={stateName}>
+                    {stateName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              Country
+              <input
+                name="country"
+                value={form.country || 'India'}
+                onChange={onChange}
+                required
+                autoComplete="country-name"
                 className={fieldClass}
               />
             </label>
@@ -490,9 +625,11 @@ export default function CheckoutPage() {
             .
           </p>
           <p className="mt-2 text-center text-xs text-muted">
-            {provider === 'razorpay'
-              ? 'Secure payment powered by Razorpay. Your order is confirmed only after server verification.'
-              : 'Demo checkout simulates a successful UPI/card payment.'}
+            {manualCheckout
+              ? 'Place the order to send the details on WhatsApp. Payment is collected manually.'
+              : provider === 'razorpay'
+                ? 'Secure payment powered by Razorpay. Your order is confirmed only after server verification.'
+                : 'Demo checkout simulates a successful UPI/card payment.'}
           </p>
         </aside>
       </form>

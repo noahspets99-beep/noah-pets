@@ -189,6 +189,8 @@ export async function createPendingOrder({
   shippingAddress,
   customerId = null,
   writeIdToken = null,
+  paymentMethod = null,
+  paymentProvider = null,
 }) {
   const accessToken = createOrderAccessToken()
   const now = new Date().toISOString()
@@ -213,10 +215,10 @@ export async function createPendingOrder({
       coupon: totals.coupon,
       status: 'Pending',
       paymentStatus: 'Pending',
-      paymentProvider: null,
+      paymentProvider: paymentProvider || null,
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      paymentMethod: null,
+      paymentMethod: paymentMethod || null,
       paymentAmountPaise: null,
       verifiedAt: null,
       inventoryAdjusted: false,

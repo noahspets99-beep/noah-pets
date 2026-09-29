@@ -348,16 +348,30 @@ export default function OrderDetailPage() {
               <h2 className="font-bold text-ink">Shipping Address</h2>
             </div>
             <address className="break-words not-italic text-sm leading-relaxed text-ink-soft">
-              {order.shippingAddress.line1}
-              {order.shippingAddress.line2 && (
+              {order.shippingAddress.line1 || order.shippingAddress.address}
+              {(order.shippingAddress.line2 || order.shippingAddress.area) && (
                 <>
                   <br />
-                  {order.shippingAddress.line2}
+                  {order.shippingAddress.line2 || order.shippingAddress.area}
+                </>
+              )}
+              {order.shippingAddress.landmark && (
+                <>
+                  <br />
+                  {order.shippingAddress.landmark}
                 </>
               )}
               <br />
-              {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-              {order.shippingAddress.pincode}
+              {[
+                order.shippingAddress.city,
+                order.shippingAddress.state,
+                order.shippingAddress.pincode,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              {order.shippingAddress.country
+                ? `, ${order.shippingAddress.country}`
+                : ''}
             </address>
           </section>
 

@@ -42,7 +42,7 @@ export default function DeliveryTNSection({ config = {} }) {
         <SectionHeader
           eyebrow="Delivery across India"
           title="We deliver across India"
-          subtitle={`Free shipping on orders ₹${freeMin}+ · Standard ETA ${eta}.`}
+          
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {displayCities.map((city) => (

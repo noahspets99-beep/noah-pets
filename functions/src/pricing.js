@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isQuotaError, publicError } from './util.js'
+import { productStock } from '../../src/lib/sellableStock.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const catalogPrices = JSON.parse(
@@ -197,10 +198,10 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
       }
       unitPrice = Number(variant.price)
       variantLabel = variant.label || variant.weight || null
-      stock = variant.stock
+      stock = productStock(data, variant)
     } else {
       unitPrice = Number(data.price)
-      stock = data.stock
+      stock = productStock(data)
     }
   }
 
@@ -224,7 +225,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
       }
       unitPrice = Number(variant.price)
       variantLabel = variant.label || null
-      stock = variant.stock
+      stock = productStock(catalog, variant)
     } else {
       unitPrice = Number(catalog.price)
     }

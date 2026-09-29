@@ -1,5 +1,8 @@
 import { catalogProducts, toStorefrontProduct } from '../data/catalog'
 import { slugify } from '../admin/utils'
+import { productStock, variantStock } from '../lib/sellableStock'
+
+export { productStock, variantStock, readStock } from '../lib/sellableStock'
 
 /** Normalize pet type to storefront plural vocabulary. */
 export function normalizePetType(petType) {
@@ -16,26 +19,6 @@ export function normalizePetType(petType) {
     'Small Pets': 'Small Pets',
   }
   return map[petType] || petType || 'Dogs'
-}
-
-export function variantStock(variant) {
-  if (!variant) return 0
-  const n = Number(variant.stock)
-  return Number.isFinite(n) ? Math.max(0, n) : 0
-}
-
-/** Authoritative sellable units from Firestore `stock` (and variant.stock when present). */
-export function productStock(product, variant = null) {
-  if (!product) return 0
-  if (variant) return variantStock(variant)
-  const variants = Array.isArray(product.variants)
-    ? product.variants.filter(Boolean)
-    : []
-  if (variants.some((v) => v.stock != null && v.stock !== '')) {
-    return variants.reduce((sum, v) => sum + variantStock(v), 0)
-  }
-  const n = Number(product.stock)
-  return Number.isFinite(n) ? Math.max(0, n) : 0
 }
 
 export function isProductInStock(product, variant = null) {

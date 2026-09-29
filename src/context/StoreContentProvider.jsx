@@ -53,10 +53,7 @@ function normalizeStorefrontReview(raw) {
   return {
     id: raw.id,
     name: raw.customer || raw.name || raw.customerName || 'Pet parent',
-    avatar:
-      raw.avatar ||
-      raw.customerAvatar ||
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop',
+    avatar: String(raw.avatar || raw.customerAvatar || '').trim(),
     petType: raw.petType || raw.customerLabel || 'Pet Parent',
     petName: raw.petName || '',
     rating: Number(raw.rating) || 5,
