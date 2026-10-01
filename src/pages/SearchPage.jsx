@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useCatalog } from '../context/CatalogProvider'
+import { productMatchesPet } from '../lib/petType'
 import ProductCard from '../components/ProductCard'
 import SeoHead from '../components/seo/SeoHead'
 
-function SearchInner({ initialQ }) {
+function SearchInner({ initialQ, pet }) {
   const { searchProducts } = useCatalog()
   const [, setParams] = useSearchParams()
   const [input, setInput] = useState(initialQ)
@@ -19,14 +20,18 @@ function SearchInner({ initialQ }) {
   useEffect(() => {
     const next = debounced.trim()
     if (next === (initialQ || '').trim()) return
-    if (next) setParams({ q: next }, { replace: true })
-    else setParams({}, { replace: true })
-  }, [debounced, initialQ, setParams])
+    const nextParams = {}
+    if (next) nextParams.q = next
+    if (pet) nextParams.pet = pet
+    setParams(nextParams, { replace: true })
+  }, [debounced, initialQ, pet, setParams])
 
-  const results = useMemo(
-    () => (debounced.trim() ? searchProducts(debounced) : []),
-    [debounced, searchProducts],
-  )
+  const results = useMemo(() => {
+    if (!debounced.trim()) return []
+    const found = searchProducts(debounced)
+    if (!pet) return found
+    return found.filter((product) => productMatchesPet(product, pet))
+  }, [debounced, pet, searchProducts])
 
   const emptyQuery = !debounced.trim()
 
@@ -92,5 +97,6 @@ function SearchInner({ initialQ }) {
 export default function SearchPage() {
   const [params] = useSearchParams()
   const q = params.get('q') || ''
-  return <SearchInner key={q} initialQ={q} />
+  const pet = params.get('pet') || ''
+  return <SearchInner key={`${q}::${pet}`} initialQ={q} pet={pet} />
 }

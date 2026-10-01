@@ -11,6 +11,19 @@ export function variantStock(variant) {
 }
 
 /**
+ * Selling price on the product record. A variant price applies only when it is
+ * a positive amount; otherwise the product selling price is used.
+ */
+export function sellingPrice(product, variant = null) {
+  const variantPrice = Number(variant?.price)
+  if (variant && Number.isFinite(variantPrice) && variantPrice > 0) {
+    return variantPrice
+  }
+  const price = Number(product?.price)
+  return Number.isFinite(price) && price > 0 ? price : 0
+}
+
+/**
  * Variant rows are inventory only when at least one has a positive quantity.
  * Admin Inventory edits product.stock. Saving a product writes variant.stock as 0
  * for size/label options that were never stocked separately. Those zeros must not

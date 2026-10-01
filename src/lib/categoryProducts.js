@@ -1,7 +1,15 @@
 /**
  * Shared product↔category matching for admin counts and storefront filters.
  * Counts are derived from live product data (not stored category.productCount).
+ * A product is counted only when the shop would list it, and only in one category.
  */
+
+function isShopListed(product) {
+  if (!product) return false
+  if (product.active === false) return false
+  if (product.status === 'Draft') return false
+  return true
+}
 
 function norm(value) {
   return String(value ?? '')
@@ -101,6 +109,7 @@ export function countProductsByCategory(products = [], categories = []) {
   for (const c of categories) counts.set(c.id, 0)
 
   for (const product of products) {
+    if (!isShopListed(product)) continue
     const categoryId = resolveProductCategoryId(product, categories)
     if (categoryId != null && counts.has(categoryId)) {
       counts.set(categoryId, (counts.get(categoryId) || 0) + 1)

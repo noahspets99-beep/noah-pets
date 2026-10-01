@@ -1,5 +1,7 @@
 /** Master catalog for Noah's Pets (Tamil Nadu · INR) */
 
+import { isPetLabel, productMatchesPet } from '../lib/petType'
+
 const IMG = {
   dogFood: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&h=600&fit=crop',
   puppy: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=600&fit=crop',
@@ -2124,14 +2126,8 @@ export function formatPrice(amount) {
 
 export function filterProducts(list, filter) {
   if (!filter || filter === 'All') return list
-  if (
-    filter === 'Dogs' ||
-    filter === 'Cats' ||
-    filter === 'Birds' ||
-    filter === 'Fish' ||
-    filter === 'Small Pets'
-  ) {
-    return list.filter((p) => p.petType === filter)
+  if (isPetLabel(filter)) {
+    return list.filter((p) => productMatchesPet(p, filter))
   }
   return list.filter(
     (p) =>
@@ -2174,5 +2170,5 @@ export function getProductsByCategorySlug(slug) {
 }
 
 export function getProductsByPetType(type) {
-  return catalogProducts.filter((p) => p.petType === type)
+  return catalogProducts.filter((p) => productMatchesPet(p, type))
 }

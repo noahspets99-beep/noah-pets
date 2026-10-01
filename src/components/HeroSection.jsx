@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCatalog } from '../context/CatalogProvider'
 
-const ROTATE_MS = 5500
+const ROTATE_MS = 2500
 
 function bannerImage(b) {
   return String(b?.image || b?.imageUrl || '').trim()
@@ -26,6 +26,7 @@ export default function HeroSection() {
   }, [banners])
 
   const [index, setIndex] = useState(0)
+  const [cycle, setCycle] = useState(0)
   const bannerKey = useMemo(
     () =>
       heroBanners
@@ -33,6 +34,13 @@ export default function HeroSection() {
         .join('|'),
     [heroBanners],
   )
+
+  const showSlide = useCallback((next) => {
+    const count = heroBanners.length
+    if (count <= 1) return
+    setIndex(((next % count) + count) % count)
+    setCycle((n) => n + 1)
+  }, [heroBanners.length])
 
   useEffect(() => {
     setIndex(0)
@@ -44,7 +52,7 @@ export default function HeroSection() {
       setIndex((i) => (i + 1) % heroBanners.length)
     }, ROTATE_MS)
     return () => window.clearInterval(timer)
-  }, [heroBanners.length, bannerKey])
+  }, [heroBanners.length, bannerKey, cycle])
 
   const banner =
     heroBanners[Math.min(index, Math.max(heroBanners.length - 1, 0))] || null
@@ -112,18 +120,27 @@ export default function HeroSection() {
           Desktop: wider/shorter cinematic frame.
         */}
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-ink sm:aspect-[16/9] sm:rounded-2xl lg:aspect-[2.4/1]">
-          {image ? (
-            <img
-              key={`${banner?.id || 'banner'}-${image}`}
-              src={image}
-              alt={title || "Noah's Pets banner"}
-              fetchPriority="high"
-              decoding="async"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-            />
-          ) : (
+          {heroBanners.map((slide, slideIndex) => {
+            const src = bannerImage(slide)
+            if (!src) return null
+            const active = slideIndex === index
+            return (
+              <img
+                key={`${slide.id || slideIndex}-${src}`}
+                src={src}
+                alt={active ? title || "Noah's Pets banner" : ''}
+                aria-hidden={!active}
+                fetchPriority={slideIndex === 0 ? 'high' : 'auto'}
+                decoding="async"
+                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700 ease-in-out ${
+                  active ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            )
+          })}
+          {!image ? (
             <div className="absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-500 to-sky-400" />
-          )}
+          ) : null}
 
           <div
             className="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/25 to-ink/5 sm:bg-gradient-to-r sm:from-ink/70 sm:via-ink/30 sm:to-transparent"
@@ -163,23 +180,41 @@ export default function HeroSection() {
           </div>
 
           {heroBanners.length > 1 && (
-            <div
-              className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 sm:bottom-5"
-              aria-label="Banner slides"
-            >
-              {heroBanners.map((b, i) => (
-                <button
-                  key={b.id || i}
-                  type="button"
-                  aria-label={`Show banner ${i + 1}`}
-                  aria-current={i === index}
-                  onClick={() => setIndex(i)}
-                  className={`h-1.5 rounded-full transition ${
-                    i === index ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
-                  }`}
-                />
-              ))}
-            </div>
+            <>
+              <button
+                type="button"
+                aria-label="Previous banner"
+                onClick={() => showSlide(index - 1)}
+                className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-ink shadow-soft sm:left-4"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next banner"
+                onClick={() => showSlide(index + 1)}
+                className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-ink shadow-soft sm:right-4"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <div
+                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 sm:bottom-5"
+                aria-label="Banner slides"
+              >
+                {heroBanners.map((b, i) => (
+                  <button
+                    key={b.id || i}
+                    type="button"
+                    aria-label={`Show banner ${i + 1}`}
+                    aria-current={i === index}
+                    onClick={() => showSlide(i)}
+                    className={`h-1.5 rounded-full transition ${
+                      i === index ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

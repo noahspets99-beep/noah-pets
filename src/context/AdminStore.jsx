@@ -23,6 +23,7 @@ import {
 import { blogPosts as seedBlogPosts } from '../data/blogPosts'
 import { DEFAULT_SEO, TN_PRIORITY_CITIES } from '../config/store'
 import { delay, slugify } from '../admin/utils'
+import { normalizePetType } from '../lib/petType'
 import { AdminStoreContext } from './admin-store-context'
 import {
   listCollection,
@@ -918,11 +919,12 @@ export function AdminStoreProvider({ children }) {
         data.categorySlug ||
         matchedCategory?.slug ||
         (data.category
-          ? slugify(data.category)
+          ? slugify(String(data.category).trim())
           : 'products')
       const product = {
         ...data,
         id: data.id || uid('p'),
+        petType: normalizePetType(data.petType),
         categoryId: data.categoryId || matchedCategory?.id || '',
         categorySlug,
         sales: 0,
@@ -950,6 +952,9 @@ export function AdminStoreProvider({ children }) {
       const patch = {
         ...data,
         updatedAt,
+      }
+      if (data.petType != null) {
+        patch.petType = normalizePetType(data.petType)
       }
       if (data.category != null || data.categoryId != null) {
         patch.categoryId = data.categoryId || matchedCategory?.id || ''

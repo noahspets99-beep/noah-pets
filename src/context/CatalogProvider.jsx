@@ -17,6 +17,7 @@ import {
   getProductBySlug as getStaticBySlug,
 } from '../data/catalog'
 import { getProductsForCategory } from '../lib/categoryProducts'
+import { productMatchesPet } from '../lib/petType'
 
 const CatalogContext = createContext(null)
 
@@ -182,7 +183,7 @@ export function CatalogProvider({ children }) {
       getProductsByCategorySlug: (slug) =>
         getProductsForCategory(products, slug, categories),
       getProductsByPetType: (petType) =>
-        products.filter((p) => p.petType === petType),
+        products.filter((p) => productMatchesPet(p, petType)),
     }
   }, [products, categories, coupons, banners, loading, error, source, load])
 

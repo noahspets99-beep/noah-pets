@@ -7,7 +7,6 @@ export default function PetProductsRow({
   petType,
   title,
   subtitle,
-  slug,
   limit = 8,
 }) {
   const { products } = useCatalog()
@@ -24,7 +23,7 @@ export default function PetProductsRow({
           subtitle={subtitle}
           action={
             <Link
-              to={`/products/${slug}`}
+              to={`/shop?pet=${encodeURIComponent(petType)}`}
               className="text-sm font-bold text-brand-600 hover:text-brand-700"
             >
               See all

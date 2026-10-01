@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Heart,
   Menu,
@@ -33,6 +33,7 @@ export default function Header() {
   } = useShop()
   const { searchProducts } = useCatalog()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
 
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -64,11 +65,12 @@ export default function Header() {
   const goSearch = (e) => {
     e?.preventDefault?.()
     const q = searchQuery.trim()
-    if (!q) {
-      navigate('/search')
-      return
-    }
-    navigate(`/search?q=${encodeURIComponent(q)}`)
+    const pet = params.get('pet')
+    const next = new URLSearchParams()
+    if (q) next.set('q', q)
+    if (pet) next.set('pet', pet)
+    const qs = next.toString()
+    navigate(qs ? `/search?${qs}` : '/search')
     setSearchFocused(false)
     setMobileSearchOpen(false)
   }

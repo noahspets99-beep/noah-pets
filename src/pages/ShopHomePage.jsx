@@ -11,12 +11,14 @@ import HeroSection from '../components/HeroSection'
 import NewArrivalsSection from '../components/NewArrivalsSection'
 import Newsletter from '../components/Newsletter'
 import PetCategorySection from '../components/PetCategorySection'
+import ShopByPetSection from '../components/ShopByPetSection'
 import PetProductsRow from '../components/PetProductsRow'
 import PromoBanner from '../components/PromoBanner'
 import ReviewsSection from '../components/ReviewsSection'
 import TrustFeatures from '../components/TrustFeatures'
 import SeoHead from '../components/seo/SeoHead'
 import DeferUntilVisible from '../components/DeferUntilVisible'
+import { Fragment } from 'react'
 import { useCatalog } from '../context/CatalogProvider'
 import { useStoreContent } from '../context/StoreContentProvider'
 import { getEnabledHomepageSections } from '../data/homepageSections'
@@ -27,6 +29,12 @@ function renderSection(section) {
     case 'hero':
       return <HeroSection key={section.id} />
     case 'shopByPet':
+      return (
+        <Fragment key={section.id}>
+          <ShopByPetSection />
+          <PetCategorySection />
+        </Fragment>
+      )
     case 'shopByCategory':
       return <PetCategorySection key={section.id} />
     case 'featured':

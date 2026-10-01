@@ -23,6 +23,7 @@ import {
   isProductInStock,
   productStock,
 } from '../services/catalogMapper'
+import { sellingPrice } from '../lib/sellableStock'
 import ProductCard from '../components/ProductCard'
 import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
@@ -101,7 +102,7 @@ export default function ProductDetailPage() {
     product.images?.length > 0
       ? product.images
       : [product.image].filter(Boolean)
-  const price = selectedVariant?.price ?? product.price
+  const price = sellingPrice(product, selectedVariant)
   const mrp = selectedVariant?.mrp ?? product.originalPrice
   const stock = productStock(product, selectedVariant)
   const inStock = isProductInStock(product, selectedVariant)

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { catalogBrands } from '../data/catalog'
 import { useStoreContent } from '../context/StoreContentProvider'
 import { absoluteUrl } from '../lib/slug'
@@ -9,6 +9,7 @@ import Breadcrumbs from '../components/seo/Breadcrumbs'
 import SeoHead from '../components/seo/SeoHead'
 import JsonLd from '../components/seo/JsonLd'
 import { breadcrumbSchema } from '../lib/schema'
+import { productMatchesPet } from '../lib/petType'
 import NotFoundPage from './NotFoundPage'
 
 const PET_TYPE_SLUGS = {
@@ -24,6 +25,8 @@ const PAGE_SIZE = 12
 
 export default function CategoryPage() {
   const { categorySlug } = useParams()
+  const [params] = useSearchParams()
+  const petFilter = params.get('pet') || ''
   const {
     categories,
     getProductsByCategorySlug,
@@ -51,11 +54,19 @@ export default function CategoryPage() {
 
   const rawProducts = useMemo(() => {
     let list = getProductsByCategorySlug(categorySlug)
-    if (!list.length && petType) {
+    if (!list.length && !category && petType) {
       list = getProductsByPetType(petType)
     }
+    if (petFilter) list = list.filter((p) => productMatchesPet(p, petFilter))
     return list
-  }, [categorySlug, petType, getProductsByCategorySlug, getProductsByPetType])
+  }, [
+    category,
+    categorySlug,
+    petFilter,
+    petType,
+    getProductsByCategorySlug,
+    getProductsByPetType,
+  ])
 
   const brandsInList = useMemo(() => {
     const set = new Set(rawProducts.map((p) => p.brand).filter(Boolean))

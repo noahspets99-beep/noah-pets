@@ -9,6 +9,7 @@ import {
   PET_TYPES,
   PRODUCT_STATUSES,
 } from '../productConstants'
+import { normalizePetType } from '../../lib/petType'
 
 const inputClass =
   'w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-100'
@@ -129,11 +130,11 @@ export default function ProductForm({
   )
 
   const categoryOptions = useMemo(() => {
-    const names = [...new Set(categories.map((c) => c.name))]
-    if (form.category && !names.includes(form.category)) {
+    const names = [...new Set(categories.map((c) => c.name).filter(Boolean))]
+    if (form.category && !names.some((name) => name.trim() === form.category.trim())) {
       names.unshift(form.category)
     }
-    return names.sort()
+    return names.sort((a, b) => a.trim().localeCompare(b.trim()))
   }, [categories, form.category])
 
   const set = (key, value) => {
@@ -217,13 +218,44 @@ export default function ProductForm({
     }))
   }
 
+  const classificationChanged = (payload) => {
+    const petChanged =
+      normalizePetType(initialValues?.petType) !==
+      normalizePetType(payload.petType)
+    const categoryChanged =
+      String(initialValues?.category || '')
+        .trim()
+        .toLowerCase() !==
+      String(payload.category || '')
+        .trim()
+        .toLowerCase()
+    return petChanged || categoryChanged
+  }
+
   const validate = (payload) => {
     const next = {}
     if (!payload.name?.trim()) next.name = 'Product name is required'
     if (!payload.sku?.trim()) next.sku = 'SKU is required'
     if (!payload.slug?.trim()) next.slug = 'URL slug is required'
-    if (!payload.petType) next.petType = 'Select a pet type'
-    if (!payload.category?.trim()) next.category = 'Category is required'
+    if (!payload.petType) next.petType = 'Select the animal this product is for'
+    if (!payload.category?.trim()) {
+      next.category = 'Select a product type'
+    } else if (mode === 'create' || classificationChanged(payload)) {
+      const matched = categories.find(
+        (c) =>
+          String(c.name || '').trim().toLowerCase() ===
+          String(payload.category || '').trim().toLowerCase(),
+      )
+      const categoryPet = String(matched?.petType || 'All').trim()
+      if (
+        matched &&
+        categoryPet &&
+        categoryPet !== 'All' &&
+        normalizePetType(categoryPet) !== normalizePetType(payload.petType)
+      ) {
+        next.category = `${matched.name.trim()} is for ${normalizePetType(categoryPet)}. Choose that pet, or pick another category.`
+      }
+    }
     if (!(Number(payload.price) > 0)) next.price = 'Enter a valid selling price'
     if (Number(payload.mrp) > 0 && Number(payload.mrp) < Number(payload.price)) {
       next.mrp = 'MRP should be greater than or equal to price'
@@ -261,6 +293,7 @@ export default function ProductForm({
       name: form.name.trim(),
       sku: form.sku.trim(),
       slug: form.slug.trim() || slugify(form.name),
+      petType: normalizePetType(form.petType),
       price,
       mrp,
       stock,
@@ -376,9 +409,17 @@ export default function ProductForm({
         </div>
       </Section>
 
-      <Section title="Classification" description="Pet type and category">
+      <Section
+        title="Classification"
+        description="Pet is the animal. Category is the product type."
+      >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Pet Type *" htmlFor="pf-pet" error={errors.petType}>
+          <Field
+            label="Pet *"
+            htmlFor="pf-pet"
+            error={errors.petType}
+            hint="The animal this product is for."
+          >
             <select
               id="pf-pet"
               value={form.petType}
@@ -392,7 +433,12 @@ export default function ProductForm({
               ))}
             </select>
           </Field>
-          <Field label="Category *" htmlFor="pf-category" error={errors.category}>
+          <Field
+            label="Category *"
+            htmlFor="pf-category"
+            error={errors.category}
+            hint="The product type, such as Food, Toys, or Grooming."
+          >
             <select
               id="pf-category"
               required

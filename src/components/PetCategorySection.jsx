@@ -29,7 +29,7 @@ export default function PetCategorySection() {
   if (tiles.length === 0) return null
 
   return (
-    <section id="shop-by-pet" className="bg-white py-12 sm:py-16">
+    <section id="shop-by-category" className="bg-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
           eyebrow="Discover"

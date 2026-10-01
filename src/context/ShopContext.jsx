@@ -4,6 +4,7 @@ import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
 import { shippingFeeForOrder } from '../lib/shippingFee'
 import { decreaseStockForCartItems } from '../services/inventoryService'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
+import { sellingPrice } from '../lib/sellableStock'
 import { useCatalog } from './CatalogProvider'
 import { useStoreContent } from './StoreContentProvider'
 import { useAuth } from './useAuth'
@@ -43,7 +44,7 @@ function calcTax(subtotal, ratePercent) {
 }
 
 export function ShopProvider({ children }) {
-  const { coupons: liveCoupons } = useCatalog()
+  const { coupons: liveCoupons, products: catalogProducts } = useCatalog()
   const { shippingSettings: liveShipping, taxSettings: liveTax } =
     useStoreContent()
   const { user, isAuthenticated } = useAuth()
@@ -67,6 +68,43 @@ export function ShopProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(cart))
   }, [cart])
+
+  useEffect(() => {
+    if (!catalogProducts?.length) return
+    setCart((prev) => {
+      let changed = false
+      const next = prev.map((item) => {
+        const product = catalogProducts.find((p) => p.id === item.id)
+        if (!product) return item
+        const variant = item.variantId
+          ? (product.variants || []).find((v) => v.id === item.variantId)
+          : null
+        const price = sellingPrice(product, variant)
+        const originalPrice = Number(
+          variant?.mrp ?? product.originalPrice ?? product.mrp,
+        )
+        const maxStock = productStock(product, variant)
+        if (
+          price !== item.price ||
+          (Number.isFinite(originalPrice) &&
+            originalPrice !== item.originalPrice) ||
+          maxStock !== item.maxStock
+        ) {
+          changed = true
+          return {
+            ...item,
+            price,
+            originalPrice: Number.isFinite(originalPrice)
+              ? originalPrice
+              : item.originalPrice,
+            maxStock,
+          }
+        }
+        return item
+      })
+      return changed ? next : prev
+    })
+  }, [catalogProducts])
 
   useEffect(() => {
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist))
@@ -152,7 +190,7 @@ export function ShopProvider({ children }) {
         brand: product.brand,
         slug: product.slug,
         image: product.image || product.images?.[0],
-        price: variant?.price ?? product.price,
+        price: sellingPrice(product, variant),
         originalPrice: variant?.mrp ?? product.originalPrice ?? product.mrp,
         sku: variant?.sku || product.sku,
         maxStock: stock,

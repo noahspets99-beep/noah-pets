@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isQuotaError, publicError } from './util.js'
-import { productStock } from '../src/lib/sellableStock.js'
+import { productStock, sellingPrice } from '../src/lib/sellableStock.js'
 import { shippingFeeForOrder } from '../src/lib/shippingFee.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -300,7 +300,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
       if (!variant) {
         throw publicError(400, 'invalid_variant', 'Product variant not found.')
       }
-      unitPrice = Number(variant.price)
+      unitPrice = sellingPrice(data, variant)
       variantLabel = variant.label || variant.weight || null
       stock = productStock(data, variant)
     } else {
@@ -327,7 +327,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
       if (!variant) {
         throw publicError(400, 'invalid_variant', 'Product variant not found.')
       }
-      unitPrice = Number(variant.price)
+      unitPrice = sellingPrice(catalog, variant)
       variantLabel = variant.label || null
       stock = productStock(catalog, variant)
     } else {

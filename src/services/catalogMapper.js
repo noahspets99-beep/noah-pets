@@ -1,25 +1,10 @@
 import { catalogProducts, toStorefrontProduct } from '../data/catalog'
 import { slugify } from '../admin/utils'
 import { productStock, variantStock } from '../lib/sellableStock'
+import { normalizePetType } from '../lib/petType'
 
-export { productStock, variantStock, readStock } from '../lib/sellableStock'
-
-/** Normalize pet type to storefront plural vocabulary. */
-export function normalizePetType(petType) {
-  const map = {
-    Dog: 'Dogs',
-    Cat: 'Cats',
-    Bird: 'Birds',
-    Fish: 'Fish',
-    Rabbit: 'Small Pets',
-    Other: 'Small Pets',
-    Dogs: 'Dogs',
-    Cats: 'Cats',
-    Birds: 'Birds',
-    'Small Pets': 'Small Pets',
-  }
-  return map[petType] || petType || 'Dogs'
-}
+export { productStock, variantStock, readStock, sellingPrice } from '../lib/sellableStock'
+export { normalizePetType } from '../lib/petType'
 
 export function isProductInStock(product, variant = null) {
   if (!product) return false

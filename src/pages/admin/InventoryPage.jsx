@@ -55,6 +55,7 @@ export default function InventoryPage() {
   const getDraft = (p) =>
     drafts[p.id] || {
       stock: String(p.stock ?? 0),
+      price: String(p.price ?? ''),
       lowStockThreshold: String(p.lowStockThreshold ?? 10),
     }
 
@@ -71,13 +72,38 @@ export default function InventoryPage() {
   const saveRow = async (p) => {
     const d = getDraft(p)
     const stock = Math.max(0, Number(d.stock) || 0)
+    const price = Number(d.price)
     const lowStockThreshold = Math.max(0, Number(d.lowStockThreshold) || 0)
+    if (!Number.isFinite(price) || price <= 0) {
+      pushToast('Enter a valid selling price', 'error')
+      return
+    }
     let status = p.status
     if (stock === 0) status = 'Out of Stock'
     else if (status === 'Out of Stock') status = 'Active'
+    const mrp = Number(p.mrp) || 0
+    const discount =
+      price > 0 && mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0
+    const prevPrice = Number(p.price) || 0
+    const variants = Array.isArray(p.variants)
+      ? p.variants.map((variant) => {
+          const variantPrice = Number(variant?.price) || 0
+          if (variantPrice === 0 || variantPrice === prevPrice) {
+            return { ...variant, price }
+          }
+          return variant
+        })
+      : undefined
     setSavingId(p.id)
     try {
-      await updateProduct(p.id, { stock, lowStockThreshold, status })
+      await updateProduct(p.id, {
+        stock,
+        price,
+        discount,
+        lowStockThreshold,
+        status,
+        ...(variants ? { variants } : {}),
+      })
       setDrafts((prev) => {
         const next = { ...prev }
         delete next[p.id]
@@ -94,7 +120,7 @@ export default function InventoryPage() {
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="Inventory"
-        subtitle="Update stock in Firebase — storefront availability follows immediately."
+        subtitle="Update stock and selling price. The shop uses this same product price."
       />
 
       <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center">
@@ -150,6 +176,7 @@ export default function InventoryPage() {
                 <tr>
                   <th className="px-4 py-3 font-semibold">Product</th>
                   <th className="px-4 py-3 font-semibold">SKU</th>
+                  <th className="px-4 py-3 font-semibold">Price (₹)</th>
                   <th className="px-4 py-3 font-semibold">Stock</th>
                   <th className="px-4 py-3 font-semibold">Low threshold</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -165,6 +192,16 @@ export default function InventoryPage() {
                         {p.name}
                       </td>
                       <td className="px-4 py-3 text-muted">{p.sku || '—'}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          className={`${inputClass} w-24`}
+                          inputMode="decimal"
+                          value={d.price}
+                          onChange={(e) =>
+                            setDraftField(p.id, 'price', e.target.value)
+                          }
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <input
                           className={`${inputClass} w-24`}
@@ -224,6 +261,17 @@ export default function InventoryPage() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <label className="text-xs font-semibold text-muted">
+                      Price (₹)
+                      <input
+                        className={`${inputClass} mt-1`}
+                        inputMode="decimal"
+                        value={d.price}
+                        onChange={(e) =>
+                          setDraftField(p.id, 'price', e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-muted">
                       Stock
                       <input
                         className={`${inputClass} mt-1`}
@@ -254,7 +302,7 @@ export default function InventoryPage() {
                     onClick={() => saveRow(p)}
                     className="mt-3 w-full rounded-xl bg-brand-500 py-2 text-sm font-bold text-white disabled:opacity-60"
                   >
-                    {savingId === p.id ? 'Saving…' : 'Save stock'}
+                    {savingId === p.id ? 'Saving…' : 'Save'}
                   </button>
                 </article>
               )
