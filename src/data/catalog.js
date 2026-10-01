@@ -1,6 +1,6 @@
 /** Master catalog for Noah's Pets (Tamil Nadu · INR) */
 
-import { isPetLabel, productMatchesPet } from '../lib/petType'
+import { isPetLabel, productMatchesPet } from '../lib/petType.js'
 
 const IMG = {
   dogFood: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&h=600&fit=crop',
