@@ -9,20 +9,28 @@ function bannerImage(b) {
   return String(b?.image || b?.imageUrl || '').trim()
 }
 
-function isHeroPosition(b) {
+function bannerRank(b) {
   const position = String(b?.position || '').trim().toLowerCase()
-  if (!position) return true
-  return position.includes('hero')
+  if (!position || position.includes('hero')) return 0
+  const order = Number(b?.sortOrder ?? b?.priority ?? b?.order)
+  return Number.isFinite(order) ? order : 1
 }
 
 export default function HeroSection() {
   const { banners, loading } = useCatalog()
 
   const heroBanners = useMemo(() => {
-    const list = Array.isArray(banners) ? banners.filter(Boolean) : []
-    const heroOnly = list.filter(isHeroPosition)
-    const pool = heroOnly.length > 0 ? heroOnly : list
-    return pool.filter((b) => bannerImage(b) || b.title || b.heading)
+    const list = (Array.isArray(banners) ? banners : []).filter(
+      (b) => b && (bannerImage(b) || b.title || b.heading),
+    )
+    return [...list].sort((a, b) => {
+      const rank = bannerRank(a) - bannerRank(b)
+      if (rank !== 0) return rank
+      const orderA = Number(a.sortOrder ?? a.priority ?? a.order)
+      const orderB = Number(b.sortOrder ?? b.priority ?? b.order)
+      if (Number.isFinite(orderA) && Number.isFinite(orderB)) return orderA - orderB
+      return 0
+    })
   }, [banners])
 
   const [index, setIndex] = useState(0)
@@ -47,12 +55,13 @@ export default function HeroSection() {
   }, [bannerKey])
 
   useEffect(() => {
-    if (heroBanners.length <= 1) return undefined
+    if (loading || heroBanners.length <= 1) return undefined
+    const count = heroBanners.length
     const timer = window.setInterval(() => {
-      setIndex((i) => (i + 1) % heroBanners.length)
+      setIndex((i) => (i + 1) % count)
     }, ROTATE_MS)
     return () => window.clearInterval(timer)
-  }, [heroBanners.length, bannerKey, cycle])
+  }, [loading, heroBanners.length, bannerKey, cycle])
 
   const banner =
     heroBanners[Math.min(index, Math.max(heroBanners.length - 1, 0))] || null
