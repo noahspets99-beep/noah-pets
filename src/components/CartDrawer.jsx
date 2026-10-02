@@ -166,7 +166,7 @@ export default function CartDrawer() {
               </div>
             )}
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-muted">Shipping</span>
+              <span className="text-muted">Handling Fee</span>
               <span className="font-semibold text-ink">
                 {shipping === 0 ? 'Free' : formatPrice(shipping)}
               </span>

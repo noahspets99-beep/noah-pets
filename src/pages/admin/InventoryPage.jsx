@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Boxes, Search } from 'lucide-react'
+import { Boxes, Pencil, Search } from 'lucide-react'
 import PageHeader from '../../admin/components/PageHeader'
 import StatusBadge from '../../admin/components/StatusBadge'
 import Pagination from '../../admin/components/Pagination'
 import EmptyState from '../../admin/components/EmptyState'
+import Modal from '../../admin/components/Modal'
+import ProductForm from '../../admin/components/ProductForm'
 import { paginate } from '../../admin/utils'
 import { useAdminStore } from '../../context/AdminStore'
 
@@ -25,12 +27,14 @@ function stockStatus(product) {
 }
 
 export default function InventoryPage() {
-  const { products, updateProduct, pushToast } = useAdminStore()
+  const { products, updateProduct, deleteProduct, pushToast } = useAdminStore()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [drafts, setDrafts] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [editing, setEditing] = useState(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -228,14 +232,24 @@ export default function InventoryPage() {
                         <StatusBadge status={stockStatus(p)} />
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          disabled={savingId === p.id}
-                          onClick={() => saveRow(p)}
-                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
-                        >
-                          {savingId === p.id ? 'Saving…' : 'Save'}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditing(p)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-ink hover:bg-surface"
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingId === p.id}
+                            onClick={() => saveRow(p)}
+                            className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+                          >
+                            {savingId === p.id ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -296,14 +310,24 @@ export default function InventoryPage() {
                       />
                     </label>
                   </div>
-                  <button
-                    type="button"
-                    disabled={savingId === p.id}
-                    onClick={() => saveRow(p)}
-                    className="mt-3 w-full rounded-xl bg-brand-500 py-2 text-sm font-bold text-white disabled:opacity-60"
-                  >
-                    {savingId === p.id ? 'Saving…' : 'Save'}
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(p)}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2 text-sm font-bold text-ink hover:bg-surface"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingId === p.id}
+                      onClick={() => saveRow(p)}
+                      className="flex-1 rounded-xl bg-brand-500 py-2 text-sm font-bold text-white disabled:opacity-60"
+                    >
+                      {savingId === p.id ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
                 </article>
               )
             })}
@@ -312,6 +336,63 @@ export default function InventoryPage() {
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </>
       )}
+
+      <Modal
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title="Edit Product"
+        description={editing?.name || ''}
+        size="xl"
+      >
+        {editing ? (
+          <ProductForm
+            mode="edit"
+            formKey={editing.id}
+            initialValues={products.find((p) => p.id === editing.id) || editing}
+            onSubmit={async (data) => {
+              await updateProduct(editing.id, data)
+              setEditing(null)
+            }}
+            onCancel={() => setEditing(null)}
+            onDelete={() => setDeleteOpen(true)}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete Product"
+        size="sm"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+              className="rounded-xl border border-line px-4 py-2 text-sm font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!editing) return
+                await deleteProduct(editing.id)
+                setDeleteOpen(false)
+                setEditing(null)
+              }}
+              className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white"
+            >
+              Delete Product
+            </button>
+          </div>
+        }
+      >
+        <p className="break-words text-sm text-ink-soft">
+          Are you sure you want to delete &ldquo;{editing?.name}&rdquo;? This
+          action cannot be undone.
+        </p>
+      </Modal>
     </div>
   )
 }

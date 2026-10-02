@@ -134,7 +134,7 @@ export default function CartPage() {
                 </div>
               )}
               <div className="flex justify-between">
-                <dt className="text-muted">Shipping</dt>
+                <dt className="text-muted">Handling Fee</dt>
                 <dd className="font-semibold">
                   {shipping === 0 ? 'Free' : formatPrice(shipping)}
                 </dd>

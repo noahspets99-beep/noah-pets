@@ -33,8 +33,8 @@ export default function PetCategorySection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
           eyebrow="Discover"
-          title="Shop By Categories"
-          subtitle="Find curated collections tailored to every companion in your home."
+          title="Shop By Pets"
+          subtitle="Find the right essentials for every pet."
         />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">

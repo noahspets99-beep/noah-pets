@@ -590,7 +590,7 @@ export default function CheckoutPage() {
               </div>
             )}
             <div className="flex justify-between">
-              <dt className="text-muted">Shipping</dt>
+              <dt className="text-muted">Handling Fee</dt>
               <dd>{shipping === 0 ? 'Free' : formatPrice(shipping)}</dd>
             </div>
             <div className="flex justify-between border-t border-line pt-3 text-base">

@@ -31,7 +31,7 @@ function renderSection(section) {
     case 'shopByPet':
       return (
         <Fragment key={section.id}>
-          <ShopByPetSection />
+          {/*<ShopByPetSection />*/}
           <PetCategorySection />
         </Fragment>
       )

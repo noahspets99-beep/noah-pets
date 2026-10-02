@@ -55,6 +55,7 @@ export function adminProductToStorefront(p) {
     age: p.ageGroup || p.age || '',
     flavor: p.flavor || '',
     weight: p.weight || '',
+    shippingWeight: p.shippingWeight ?? '',
     size: p.size || '',
     color: p.color || '',
     featured: !!p.featured,

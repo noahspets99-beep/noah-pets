@@ -351,6 +351,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
     quantity: qty,
     price: unitPrice,
     lineTotal: unitPrice * qty,
+    shippingWeight: data?.shippingWeight ?? '',
   }
 }
 
@@ -402,10 +403,15 @@ export function calculateTotals(lineItems, couponCode, couponDoc = null, options
   }
 
   const taxable = Math.max(0, subtotal - discount)
-  const shipping = shippingFeeForOrder(taxable, options, {
-    freeShippingMinOrder: FREE_SHIPPING_MIN,
-    standardShippingFee: STANDARD_SHIPPING_FEE,
-  })
+  const shipping = shippingFeeForOrder(
+    taxable,
+    options,
+    {
+      freeShippingMinOrder: FREE_SHIPPING_MIN,
+      standardShippingFee: STANDARD_SHIPPING_FEE,
+    },
+    lineItems,
+  )
   const taxRate = Number(options.taxRate)
   const safeRate =
     Number.isFinite(taxRate) && taxRate > 0 ? taxRate : DEFAULT_TAX_RATE

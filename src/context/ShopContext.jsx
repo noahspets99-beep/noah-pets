@@ -336,14 +336,23 @@ export function ShopProvider({ children }) {
   }, [appliedCoupon, cartSubtotal])
 
   // Free-shipping threshold is the subtotal after discount.
+  // Lines with a shipping weight use kg × the standard rate. Lines without one
+  // share the standard fee once.
   const shipping = useMemo(
     () =>
       shippingFeeForOrder(
         Math.max(0, cartSubtotal - couponDiscount),
         liveShipping,
         seedShippingSettings,
+        cart.map((item) => {
+          const product = catalogProducts.find((p) => p.id === item.id)
+          return {
+            quantity: item.quantity,
+            shippingWeight: product?.shippingWeight ?? item.shippingWeight,
+          }
+        }),
       ),
-    [cartSubtotal, couponDiscount, liveShipping],
+    [cart, catalogProducts, cartSubtotal, couponDiscount, liveShipping],
   )
 
   const tax = useMemo(

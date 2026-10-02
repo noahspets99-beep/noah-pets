@@ -20,4 +20,35 @@ const fromSettingsPage = { freeDeliveryThreshold: 1000, deliveryFee: 80 }
 assert.equal(shippingFeeForOrder(999, fromSettingsPage), 80)
 assert.equal(shippingFeeForOrder(1000, fromSettingsPage), 0)
 
+const rate = { freeShippingMinOrder: 0, standardShippingFee: 50 }
+const line = (kg, quantity = 1) => [{ shippingWeight: kg, quantity }]
+assert.equal(shippingFeeForOrder(200, rate, null, line(1)), 50)
+assert.equal(shippingFeeForOrder(200, rate, null, line(2)), 100)
+assert.equal(shippingFeeForOrder(200, rate, null, line(5)), 250)
+assert.equal(shippingFeeForOrder(200, rate, null, line(null)), 50)
+assert.equal(shippingFeeForOrder(200, rate, null, line('')), 50)
+assert.equal(shippingFeeForOrder(200, rate, null, line(0)), 50)
+assert.equal(shippingFeeForOrder(200, rate, null, line('abc')), 50)
+assert.equal(shippingFeeForOrder(200, rate, null, line(-2)), 50)
+
+const free = { freeShippingMinOrder: 999, standardShippingFee: 50 }
+assert.equal(shippingFeeForOrder(999, free, null, line(5)), 0)
+assert.equal(shippingFeeForOrder(998, free, null, line(5)), 250)
+
+assert.equal(
+  shippingFeeForOrder(200, rate, null, [
+    { shippingWeight: '', quantity: 1 },
+    { shippingWeight: null, quantity: 2 },
+  ]),
+  50,
+)
+assert.equal(
+  shippingFeeForOrder(200, rate, null, [
+    { shippingWeight: 2, quantity: 1 },
+    { shippingWeight: '', quantity: 1 },
+  ]),
+  150,
+)
+assert.equal(shippingFeeForOrder(200, rate, null, line(2, 2)), 200)
+
 console.log('shipping fee ok')
