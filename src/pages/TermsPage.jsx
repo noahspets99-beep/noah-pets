@@ -1,6 +1,82 @@
-import { Link } from 'react-router-dom'
-import { STORE, formatStoreAddress } from '../config/store'
 import SeoHead from '../components/seo/SeoHead'
+
+const sections = [
+  {
+    title: 'COMMON REQUEST',
+    note: 'Avoid Urgent Orders',
+    paragraphs: [
+      'No Urgent Orders Please! For safe shipping, please place separate orders for breakable and unbreakable items. MAKE PREPAID ORDERS TO AVOID DELAY / RETURN',
+      'PLEASE DON\'T ORDER ANY EMERGIENCEY ITEMS BECAUSE TRANSIT MAY TAKE TIME DUE TO WEATHER / TRANSIT ISSUES SUBJECT TO LOGSITCS / COURIER / POSTAL DEPARTMENT. कृपया कोई आपातकालीन वस्तु ऑर्डर न करें क्योंकि ट्रांज़िट में समय लग सकता है मौसम/पारगमन मुद्दों के कारण लॉजिस्टिक/कूरियर/डाक विभाग के अधीन',
+    ],
+  },
+  {
+    title: 'BASIC DELIVERY CHARGE',
+    paragraphs: [
+      'BASIC DELIVERY CHARGE : Rs. 80/- The order will sent by India Post Business Parcel Service / Private Delivery Servoce. Delivery period : Minimum 3 +/- working days. Exact delivery date & time not available in India post Delivery terms and conditions subject to Postal Department of India / Shiprocket service. Once the order dispatched we can not able to stop / alter / cancel it.',
+    ],
+  },
+  {
+    title: 'PREPAID - STANDARD DELIVERY',
+    note: 'Subject to Parcel Size',
+    paragraphs: [
+      'PRIVATE DELIVERY SERVICE : Service provider will provide Delivery Details, Live tracking and Delivery customer care support. Additional Delivery charges may extra (Subject to courier company) Service available only. Once the order dispatched we can not able to stop / alter / cancel it. (Return policy applicable)',
+    ],
+  },
+  {
+    title: 'PREPAID - PRIVATE COURIER',
+    note: 'Subject to Parcel Size',
+    paragraphs: [
+      'We now offer Part Payment Facility 🎉 Here\'s how it works: - Pay just 50% of the total bill amount now & Balance payment can be made at the time of delivery. - COD Service charge: 10 to 25% of the total amount (extra) - All other terms & conditions will sent by Whatsapp message - This facility is applicable for selected products / servicable area.',
+    ],
+  },
+  {
+    title: 'PART PAYMENT / COD',
+    note: 'For selected products only',
+    paragraphs: [
+      'ONLY PREPAID ORDER - Order will be delivered to your nearest Logistic branch. To choose your nearest Logistic branch, the branch details will sent to you by WhatsApp. After loading the order, the logistic bill will sent to you by WhatsApp. At the time of delivery have to keep your Id proof copy and the logistic bill copy. (Above 25 Kg or Big consignments will send by Logistics) - No Return',
+    ],
+  },
+  {
+    title: 'WHOLE SALE DELIVERY',
+    paragraphs: ['No Retun Accepted'],
+  },
+  {
+    title: 'RETURN / REFUND POLICY',
+    note: 'Unboxing video compulsory',
+    highlight: 'No return or refund after payment',
+    paragraphs: [
+      'Only manufacturing issues and missing orders are eligible to be considered for a return / refund where applicable. Unboxing video must. Your item must be in the same condition that you received it, unworn or unused with tags and in its original packaging and should sent to our registered office. After the return product received us will be refunded. Packing / Bank chrges / Foward & Return delivery charges will not be refunded.',
+    ],
+  },
+  {
+    title: 'DELIVERY ISSUES / COMPLIANTS',
+    note: 'Unboxing video compulsory',
+    paragraphs: [
+      'Any claims subject to Coimbatore jurisdiction. All the product disputes / warranty belongs to the manufacturers / brands. The shipment is not covered under insurance and transported at the buyer’s risk entirely. WE ARE NOT RESPONSIBLE FOR DELIVERY DELAY / DAMAGES / CONSIGNMENT MISSING PLEASE GIVE A COMPLAINT WITH RELEVANT DOCUMENTS TO THE SHIPPING SERVICE PROVIDER.',
+    ],
+  },
+  {
+    title: 'GENERAL TERMS & CONDITIONS',
+    paragraphs: [
+      'For safe shipping, please place separate orders for breakable and unbreakable items. To prevent damage, we recommend ordering fragile and non-fragile items in separate transactions. Please note that we are not responsible for any damages that may occur during shipping.',
+    ],
+  },
+  {
+    title: 'SHIPPING ADVISORY',
+    note: 'Ordering Tip:',
+    paragraphs: [
+      'No Urgent Orders Please! For safe shipping, please place separate orders for breakable and unbreakable items. MAKE PREPAID ORDERS TO AVOID DELAY / RETURN',
+      'PLEASE DON\'T ORDER ANY EMERGIENCEY ITEMS BECAUSE TRANSIT MAY TAKE TIME DUE TO WEATHER / TRANSIT ISSUES SUBJECT TO LOGSITCS / COURIER / POSTAL DEPARTMENT. कृपया कोई आपातकालीन वस्तु ऑर्डर न करें क्योंकि ट्रांज़िट में समय लग सकता है मौसम/पारगमन मुद्दों के कारण लॉजिस्टिक/कूरियर/डाक विभाग के अधीन',
+    ],
+  },
+  {
+    title: 'DISCLAIMER',
+    note: 'General Notice',
+    paragraphs: [
+      'The contents of this website are for informational purposes only and not intended to be a substitute for professional medical advice, diagnosis, or treatment. Please seek the advice of a physician or other qualified health provider with any questions you may have regarding a medical condition. Do not disregard professional medical advice or delay in seeking it because of something you have read on',
+    ],
+  },
+]
 
 export default function TermsPage() {
   return (
@@ -13,182 +89,30 @@ export default function TermsPage() {
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">
         Terms &amp; Conditions
       </h1>
-      <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-soft sm:text-base">
-        <h2 className="text-xl font-extrabold text-ink">1. Introduction</h2>
-        <p>
-          These Terms &amp; Conditions govern your use of the Noah&apos;s Pets
-          website and purchases made through it. By browsing the website or
-          placing an order, you agree to these terms. Please also review our{' '}
-          <Link to="/privacy" className="font-semibold text-brand-600">
-            Privacy Policy
-          </Link>
-          ,{' '}
-          <Link to="/shipping" className="font-semibold text-brand-600">
-            Shipping &amp; Delivery Policy
-          </Link>
-          , and{' '}
-          <Link to="/returns" className="font-semibold text-brand-600">
-            Refund &amp; Cancellation Policy
-          </Link>
-          .
-        </p>
-        <p>
-          <strong className="text-ink">Noah&apos;s Pets</strong>
-          <br />
-          <a
-            href={STORE.mapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-brand-600 hover:text-brand-700"
+      <div className="mt-6 space-y-3 sm:space-y-4">
+        {sections.map((section) => (
+          <section
+            key={section.title}
+            className="rounded-2xl border border-line bg-white p-4 shadow-card sm:p-5"
           >
-            {formatStoreAddress()}
-          </a>
-          <br />
-          Email:{' '}
-          <a
-            href={`mailto:${STORE.email}`}
-            className="font-semibold text-brand-600 hover:text-brand-700"
-          >
-            {STORE.email}
-          </a>
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          2. Products and Product Information
-        </h2>
-        <p>
-          Product descriptions, images, and other details on the website are
-          provided for informational purposes. We aim to keep product information
-          accurate, but packaging, appearance, or availability may vary.
-          Product availability may change at any time.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">3. Prices</h2>
-        <p>
-          Product prices displayed on the website are the applicable prices at
-          the time of purchase. Prices are shown in Indian Rupees (INR). Any
-          applicable charges or taxes shown at checkout form part of the amount
-          payable for that order.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">4. Orders</h2>
-        <p>
-          An order is subject to successful payment and order acceptance or
-          processing by Noah&apos;s Pets. Customers must verify their order
-          details before completing payment. Noah&apos;s Pets may decline or be
-          unable to fulfil an order where payment is unsuccessful, information
-          is incomplete or incorrect, or a product cannot be supplied.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          5. Customer Information
-        </h2>
-        <p>
-          Customers are responsible for providing accurate name, phone number,
-          email address, and delivery address. Customer information is collected
-          for order processing and dispatch. Noah&apos;s Pets does not sell
-          customer personal information. Further details are set out in our{' '}
-          <Link to="/privacy" className="font-semibold text-brand-600">
-            Privacy Policy
-          </Link>
-          .
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">6. Payment</h2>
-        <p>
-          Payments for online orders are processed through the payment gateway
-          or provider used on this website. An order is confirmed only after
-          successful payment verification according to the payment provider and
-          Noah&apos;s Pets order process.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          7. Shipping and Delivery
-        </h2>
-        <p>
-          Shipping and delivery are governed by our{' '}
-          <Link to="/shipping" className="font-semibold text-brand-600">
-            Shipping &amp; Delivery Policy
-          </Link>
-          . Noah&apos;s Pets delivers products across India. After dispatch,
-          delivery is carried out by the applicable delivery or courier agency.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">8. Cancellation</h2>
-        <p>
-          Once payment has been successfully completed, the order cannot be
-          cancelled. Customers should verify product, quantity, delivery
-          address, phone number, and other order details before completing
-          payment. Cancellation after successful payment is not accepted. See
-          our{' '}
-          <Link to="/returns" className="font-semibold text-brand-600">
-            Refund &amp; Cancellation Policy
-          </Link>
-          .
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          9. Returns and Refunds
-        </h2>
-        <p>
-          Returns and refunds are governed by our{' '}
-          <Link to="/returns" className="font-semibold text-brand-600">
-            Refund &amp; Cancellation Policy
-          </Link>
-          . Under the normal order policy, products cannot be returned after
-          purchase, and refunds are not available once payment has been
-          successfully completed merely because a customer changes their mind.
-          Nothing in these terms seeks to exclude rights that cannot be excluded
-          under applicable Indian law.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          10. Customer Responsibilities
-        </h2>
-        <p>
-          Customers are responsible for providing accurate contact and delivery
-          information, verifying order details before payment, and remaining
-          reachable for delivery-related communication. Noah&apos;s Pets is not
-          responsible for failed delivery caused solely by incorrect address or
-          unreachable contact details provided by the customer, subject to
-          applicable law.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          11. Website Usage
-        </h2>
-        <p>
-          You agree to use this website lawfully and not to misuse the site,
-          interfere with its operation, or attempt unauthorised access to
-          systems or data. Content on the website is provided for shopping and
-          information related to Noah&apos;s Pets products and services.
-        </p>
-
-        <h2 className="pt-2 text-xl font-extrabold text-ink">
-          12. Contact Information
-        </h2>
-        <p>
-          For questions about these terms or your order, contact:
-        </p>
-        <p>
-          Email:{' '}
-          <a
-            href={`mailto:${STORE.email}`}
-            className="font-semibold text-brand-600 hover:text-brand-700"
-          >
-            {STORE.email}
-          </a>
-          <br />
-          Address:{' '}
-          <a
-            href={STORE.mapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-brand-600 hover:text-brand-700"
-          >
-            {formatStoreAddress()}
-          </a>
-        </p>
+            <h2 className="text-base font-extrabold tracking-tight text-ink sm:text-lg">
+              {section.title}
+            </h2>
+            {section.note ? (
+              <p className="mt-1 text-sm font-semibold text-ink">{section.note}</p>
+            ) : null}
+            {section.highlight ? (
+              <p className="mt-3 rounded-xl bg-surface px-3 py-2 text-sm font-extrabold text-ink sm:text-base">
+                {section.highlight}
+              </p>
+            ) : null}
+            <div className="mt-3 space-y-3 text-sm leading-relaxed text-ink-soft">
+              {section.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   )
