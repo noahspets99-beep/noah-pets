@@ -27,6 +27,7 @@ import ShopPage from './pages/ShopPage'
 import TermsPage from './pages/TermsPage'
 import PrivacyPage from './pages/PrivacyPage'
 import WishlistPage from './pages/WishlistPage'
+import { Analytics } from "@vercel/analytics/next"
 
 // Admin is code-split so storefront visitors don't download the admin bundle.
 const AdminLayout = lazy(() => import('./admin/components/AdminLayout'))
@@ -75,6 +76,7 @@ function AdminTree() {
 function App() {
   return (
     <HelmetProvider>
+      <Analytics />
       <AuthProvider>
         <BrowserRouter>
           <ScrollToTop />
