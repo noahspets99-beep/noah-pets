@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShopContext } from './shop-context'
 import { shippingSettings as seedShippingSettings } from '../data/shippingTax'
 import { shippingFeeForOrder } from '../lib/shippingFee'
+import { evaluateCoupon } from '../lib/couponDiscount'
+import { loadPublicCoupons } from '../services/cache/publicStorefront'
 import { decreaseStockForCartItems } from '../services/inventoryService'
 import { isProductInStock, productStock, firstAvailableVariant } from '../services/catalogMapper'
 import { sellingPrice } from '../lib/sellableStock'
@@ -316,24 +318,26 @@ export function ShopProvider({ children }) {
     [cart],
   )
 
+  const couponLines = useMemo(
+    () =>
+      cart.map((item) => {
+        const product = catalogProducts.find((p) => p.id === item.id)
+        return {
+          id: item.id,
+          lineTotal: item.price * item.quantity,
+          categoryId: product?.categoryId || '',
+          categorySlug: product?.categorySlug || '',
+          category: product?.category || '',
+        }
+      }),
+    [cart, catalogProducts],
+  )
+
   const couponDiscount = useMemo(() => {
     if (!appliedCoupon) return 0
-    const min = Number(appliedCoupon.minOrder || appliedCoupon.minOrderAmount || 0)
-    if (cartSubtotal < min) return 0
-    const type = (appliedCoupon.type || appliedCoupon.discountType || '').toLowerCase()
-    const rawValue = Number(appliedCoupon.value || appliedCoupon.amount || 0)
-    let computed
-    if (type.includes('percent') || type === '%') {
-      computed = Math.round((cartSubtotal * rawValue) / 100)
-      const max = Number(
-        appliedCoupon.maxDiscount || appliedCoupon.maximumDiscount || 0,
-      )
-      if (max > 0) computed = Math.min(computed, max)
-    } else {
-      computed = rawValue
-    }
-    return Math.min(computed, cartSubtotal)
-  }, [appliedCoupon, cartSubtotal])
+    const result = evaluateCoupon(appliedCoupon, couponLines, cartSubtotal)
+    return result.ok ? result.discount : 0
+  }, [appliedCoupon, couponLines, cartSubtotal])
 
   // Free-shipping threshold is the subtotal after discount.
   // Lines with a shipping weight use kg × the standard rate. Lines without one
@@ -366,32 +370,49 @@ export function ShopProvider({ children }) {
   )
 
   const applyCoupon = useCallback(
-    (code) => {
+    async (code) => {
       const normalized = String(code || '').trim().toUpperCase()
       if (!normalized) {
         showToast('Enter a coupon code', 'error')
         return false
       }
-      const found = liveCoupons.find(
-        (c) =>
-          String(c.code).toUpperCase() === normalized &&
-          (c.status === 'Active' || c.active !== false) &&
-          c.status !== 'Expired',
+      if (
+        appliedCoupon &&
+        String(appliedCoupon.code || '').trim().toUpperCase() === normalized
+      ) {
+        showToast('Coupon already applied', 'info')
+        return true
+      }
+      if (cartSubtotal <= 0) {
+        showToast('Your cart is empty', 'error')
+        return false
+      }
+
+      let source = liveCoupons
+      try {
+        const fresh = await loadPublicCoupons()
+        if (Array.isArray(fresh)) source = fresh
+      } catch (err) {
+        console.warn('Coupon lookup failed', err?.code || err?.message || err)
+      }
+
+      const found = source.find(
+        (c) => String(c.code || '').trim().toUpperCase() === normalized,
       )
       if (!found) {
         showToast('Invalid coupon code', 'error')
         return false
       }
-      const min = Number(found.minOrder || found.minOrderAmount || 0)
-      if (cartSubtotal < min) {
-        showToast(`Minimum order ₹${min} required`, 'error')
+      const result = evaluateCoupon(found, couponLines, cartSubtotal)
+      if (!result.ok) {
+        showToast(result.message, 'error')
         return false
       }
       setAppliedCoupon(found)
       showToast(`Coupon ${found.code} applied`)
       return true
     },
-    [cartSubtotal, showToast, liveCoupons],
+    [appliedCoupon, cartSubtotal, couponLines, liveCoupons, showToast],
   )
 
   const removeCoupon = useCallback(() => {

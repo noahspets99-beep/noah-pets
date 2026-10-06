@@ -220,6 +220,16 @@ export async function loadPublicStorefront({ force = false } = {}) {
   }
 }
 
+/** Coupons are read live so a code created in admin is usable on the next apply. */
+export async function loadPublicCoupons() {
+  if (!isFirebaseConfigured) return []
+  const coupons = await listCollection('coupons')
+  if (coupons.mode !== 'firestore') {
+    throw new Error(coupons.error || 'Coupons are unavailable')
+  }
+  return coupons.data || []
+}
+
 export async function invalidatePublicStorefrontCache() {
   generation += 1
   memoryEntry = null

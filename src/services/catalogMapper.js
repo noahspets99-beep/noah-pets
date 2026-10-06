@@ -37,6 +37,7 @@ export function adminProductToStorefront(p) {
     brand: p.brand,
     petType,
     category: p.category || p.subcategory || '',
+    categoryId: p.categoryId || '',
     subcategory: p.subcategory || p.category || '',
     categorySlug,
     subcategorySlug: p.subcategorySlug || categorySlug,

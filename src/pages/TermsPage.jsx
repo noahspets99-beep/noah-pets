@@ -52,7 +52,7 @@ const sections = [
     title: 'DELIVERY ISSUES / COMPLIANTS',
     note: 'Unboxing video compulsory',
     paragraphs: [
-      'Any claims subject to Coimbatore jurisdiction. All the product disputes / warranty belongs to the manufacturers / brands. The shipment is not covered under insurance and transported at the buyer’s risk entirely. WE ARE NOT RESPONSIBLE FOR DELIVERY DELAY / DAMAGES / CONSIGNMENT MISSING PLEASE GIVE A COMPLAINT WITH RELEVANT DOCUMENTS TO THE SHIPPING SERVICE PROVIDER.',
+      'Any claims subject to Chennai jurisdiction. All the product disputes / warranty belongs to the manufacturers / brands. The shipment is not covered under insurance and transported at the buyer’s risk entirely. WE ARE NOT RESPONSIBLE FOR DELIVERY DELAY / DAMAGES / CONSIGNMENT MISSING PLEASE GIVE A COMPLAINT WITH RELEVANT DOCUMENTS TO THE SHIPPING SERVICE PROVIDER.',
     ],
   },
   {

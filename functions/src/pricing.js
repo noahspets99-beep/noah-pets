@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { isQuotaError, publicError } from './util.js'
 import { productStock, sellingPrice } from '../../src/lib/sellableStock.js'
 import { shippingFeeForOrder } from '../../src/lib/shippingFee.js'
+import { evaluateCoupon } from '../../src/lib/couponDiscount.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const catalogPrices = JSON.parse(
@@ -171,6 +172,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
   let stock = null
 
   let data = null
+  let source = null
   let lookupError = null
   if (db) {
     try {
@@ -191,6 +193,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
   }
 
   if (data) {
+    source = data
     name = data.name
     if (variantId && Array.isArray(data.variants)) {
       const variant = data.variants.find((v) => v.id === variantId)
@@ -218,6 +221,7 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
       }
       throw publicError(400, 'product_not_found', 'One or more products were not found.')
     }
+    source = catalog
     name = catalog.name
     if (variantId) {
       const variant = catalog.variants?.[variantId]
@@ -248,7 +252,10 @@ export async function resolveLineItem(db, { productId, variantId, quantity }) {
     quantity: qty,
     price: unitPrice,
     lineTotal: unitPrice * qty,
-    shippingWeight: data?.shippingWeight ?? '',
+    shippingWeight: source?.shippingWeight ?? '',
+    categoryId: source?.categoryId || '',
+    categorySlug: source?.categorySlug || '',
+    category: source?.category || source?.subcategory || '',
   }
 }
 
@@ -350,43 +357,11 @@ export function calculateTotals(lineItems, couponCode, couponDoc = null, options
 
   if (couponCode) {
     const code = String(couponCode).trim().toUpperCase()
-    const coupon = couponDoc || null
-    if (!coupon || (coupon.status && coupon.status !== 'Active') || coupon.active === false) {
-      throw publicError(400, 'invalid_coupon', 'Invalid coupon code.')
+    const result = evaluateCoupon(couponDoc || null, lineItems, subtotal)
+    if (!result.ok) {
+      throw publicError(400, result.code, result.message)
     }
-    const endDate = coupon.endDate || coupon.expiresAt || coupon.validUntil
-    if (endDate) {
-      const end = new Date(endDate)
-      if (!Number.isNaN(end.getTime()) && end.getTime() < Date.now()) {
-        throw publicError(400, 'coupon_expired', 'This coupon has expired.')
-      }
-    }
-    const usageLimit = Number(coupon.usageLimit ?? coupon.maxUses ?? 0)
-    const usedCount = Number(
-      coupon.used ?? coupon.usedCount ?? coupon.usageCount ?? 0,
-    )
-    if (usageLimit > 0 && usedCount >= usageLimit) {
-      throw publicError(400, 'coupon_exhausted', 'This coupon is no longer available.')
-    }
-    const minOrder = Number(coupon.minOrder ?? coupon.minOrderAmount ?? 0)
-    if (subtotal < minOrder) {
-      throw publicError(
-        400,
-        'coupon_min_order',
-        `Coupon requires a minimum order of ₹${minOrder}.`,
-      )
-    }
-    const type = String(coupon.type || '')
-    const value = Number(coupon.value) || 0
-    const maxDiscount = Number(coupon.maxDiscount) || 0
-    if (type === 'Percentage' || type === 'percent') {
-      discount = Math.round((subtotal * value) / 100)
-      if (maxDiscount > 0) {
-        discount = Math.min(discount, maxDiscount)
-      }
-    } else {
-      discount = Math.min(value, subtotal)
-    }
+    discount = result.discount
     appliedCoupon = code
   }
 

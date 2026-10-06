@@ -2083,6 +2083,7 @@ export function toStorefrontProduct(p) {
     brand: p.brand,
     petType: p.petType,
     category: p.category,
+    categoryId: p.categoryId || '',
     subcategory: p.subcategory,
     categorySlug: p.categorySlug,
     subcategorySlug: p.subcategorySlug,

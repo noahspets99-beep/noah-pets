@@ -3,6 +3,7 @@ import { isFirebaseConfigured } from '../services/firestore/repository'
 import {
   friendlyStoreError,
   invalidatePublicStorefrontCache,
+  loadPublicCoupons,
   loadPublicStorefront,
 } from '../services/cache/publicStorefront'
 import {
@@ -115,8 +116,18 @@ export function CatalogProvider({ children }) {
       if (!isFirebaseConfigured) return
       try {
         const result = await loadPublicStorefront({ force })
+        let liveCoupons = null
+        try {
+          liveCoupons = await loadPublicCoupons()
+        } catch (couponErr) {
+          console.warn(
+            'Coupon refresh failed',
+            couponErr?.code || couponErr?.message || couponErr,
+          )
+        }
         if (result?.data) {
           applyRaw(result.data, { stale: result.cache === 'stale' })
+          if (Array.isArray(liveCoupons)) setCoupons(liveCoupons)
           setError(result.error ? 'Data may be temporarily outdated.' : null)
         }
       } catch (err) {

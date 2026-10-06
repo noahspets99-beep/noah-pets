@@ -18,6 +18,9 @@ const EMPTY_FORM = {
   endDate: '',
   usageLimit: '',
   status: 'Active',
+  applicability: 'all',
+  categoryIds: [],
+  productIds: [],
 }
 
 const inputClass =
@@ -32,13 +35,23 @@ function estimateDiscount(coupon) {
 }
 
 export default function CouponsPage() {
-  const { coupons, createCoupon, updateCoupon, deleteCoupon, dataStatus } =
-    useAdminStore()
+  const {
+    coupons,
+    categories,
+    products,
+    createCoupon,
+    updateCoupon,
+    deleteCoupon,
+    dataStatus,
+  } = useAdminStore()
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deactivateTarget, setDeactivateTarget] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [formError, setFormError] = useState('')
+  const [categoryQuery, setCategoryQuery] = useState('')
+  const [productQuery, setProductQuery] = useState('')
 
   const kpis = useMemo(() => {
     const active = coupons.filter(
@@ -55,11 +68,21 @@ export default function CouponsPage() {
   const openCreate = () => {
     setEditing(null)
     setForm(EMPTY_FORM)
+    setFormError('')
+    setCategoryQuery('')
+    setProductQuery('')
     setFormOpen(true)
   }
 
   const openEdit = (coupon) => {
     setEditing(coupon)
+    const applicability =
+      coupon.applicability ||
+      (Array.isArray(coupon.productIds) && coupon.productIds.length
+        ? 'products'
+        : Array.isArray(coupon.categoryIds) && coupon.categoryIds.length
+          ? 'categories'
+          : 'all')
     setForm({
       code: coupon.code || '',
       type: coupon.type || 'Percentage',
@@ -70,12 +93,39 @@ export default function CouponsPage() {
       endDate: coupon.endDate || '',
       usageLimit: String(coupon.usageLimit ?? ''),
       status: coupon.status || 'Active',
+      applicability,
+      categoryIds: Array.isArray(coupon.categoryIds) ? coupon.categoryIds : [],
+      productIds: Array.isArray(coupon.productIds) ? coupon.productIds : [],
     })
+    setFormError('')
+    setCategoryQuery('')
+    setProductQuery('')
     setFormOpen(true)
+  }
+
+  const toggleId = (key, id) => {
+    setForm((prev) => {
+      const current = prev[key]
+      const next = current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id]
+      return { ...prev, [key]: next }
+    })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (form.applicability === 'categories' && form.categoryIds.length === 0) {
+      setFormError('Select at least one category.')
+      return
+    }
+    if (form.applicability === 'products' && form.productIds.length === 0) {
+      setFormError('Select at least one product.')
+      return
+    }
+    const selectedCategories = categories.filter((category) =>
+      form.categoryIds.includes(category.id),
+    )
     const payload = {
       code: form.code.trim().toUpperCase(),
       type: form.type,
@@ -87,7 +137,19 @@ export default function CouponsPage() {
       usageLimit: Number(form.usageLimit),
       status: form.status,
       active: form.status === 'Active',
+      applicability: form.applicability,
+      categoryIds: form.applicability === 'categories' ? form.categoryIds : [],
+      categorySlugs:
+        form.applicability === 'categories'
+          ? selectedCategories.map((category) => category.slug).filter(Boolean)
+          : [],
+      categoryNames:
+        form.applicability === 'categories'
+          ? selectedCategories.map((category) => category.name).filter(Boolean)
+          : [],
+      productIds: form.applicability === 'products' ? form.productIds : [],
     }
+    setFormError('')
     if (editing) {
       await updateCoupon(editing.id, payload)
     } else {
@@ -434,7 +496,115 @@ export default function CouponsPage() {
                 <option value="Expired">Expired</option>
               </select>
             </div>
+            <fieldset className="sm:col-span-2">
+              <legend className="mb-1.5 block text-xs font-semibold text-muted">
+                Applicable To
+              </legend>
+              <div className="flex flex-wrap gap-3 text-sm text-ink">
+                {[
+                  ['all', 'All Products'],
+                  ['categories', 'Specific Categories'],
+                  ['products', 'Specific Products'],
+                ].map(([value, label]) => (
+                  <label key={value} className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="applicability"
+                      value={value}
+                      checked={form.applicability === value}
+                      onChange={() =>
+                        setForm({ ...form, applicability: value })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {form.applicability === 'categories' && (
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-xs font-semibold text-muted">
+                  Categories
+                </label>
+                <input
+                  value={categoryQuery}
+                  onChange={(e) => setCategoryQuery(e.target.value)}
+                  className={inputClass}
+                  placeholder="Search categories"
+                />
+                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
+                  {categories
+                    .filter((category) =>
+                      String(category.name || '')
+                        .toLowerCase()
+                        .includes(categoryQuery.trim().toLowerCase()),
+                    )
+                    .map((category) => (
+                      <label
+                        key={category.id}
+                        className="flex items-center gap-2 px-1 py-1 text-sm text-ink"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.categoryIds.includes(category.id)}
+                          onChange={() => toggleId('categoryIds', category.id)}
+                        />
+                        {category.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
+            {form.applicability === 'products' && (
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-xs font-semibold text-muted">
+                  Products
+                </label>
+                <input
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  className={inputClass}
+                  placeholder="Search products"
+                />
+                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
+                  {products
+                    .filter((product) => {
+                      if (form.productIds.includes(product.id)) return true
+                      const query = productQuery.trim().toLowerCase()
+                      if (!query) return true
+                      return (
+                        String(product.name || '')
+                          .toLowerCase()
+                          .includes(query) ||
+                        String(product.sku || '').toLowerCase().includes(query)
+                      )
+                    })
+                    .sort((a, b) => {
+                      const aSelected = form.productIds.includes(a.id) ? 0 : 1
+                      const bSelected = form.productIds.includes(b.id) ? 0 : 1
+                      return aSelected - bSelected
+                    })
+                    .slice(0, 40)
+                    .map((product) => (
+                      <label
+                        key={product.id}
+                        className="flex items-center gap-2 px-1 py-1 text-sm text-ink"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.productIds.includes(product.id)}
+                          onChange={() => toggleId('productIds', product.id)}
+                        />
+                        {product.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
+          {formError ? (
+            <p className="text-sm font-medium text-danger">{formError}</p>
+          ) : null}
         </form>
       </Modal>
 
